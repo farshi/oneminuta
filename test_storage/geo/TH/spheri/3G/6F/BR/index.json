@@ -1,0 +1,19 @@
+{
+  "cell": "3G6FBR",
+  "count": 4,
+  "by_status": {
+    "available": 4
+  },
+  "by_asset_type": {
+    "rent": 1,
+    "sale": 3
+  },
+  "properties": [
+    "u_54ce86db:prop_73e6f225",
+    "u_54ce86db:prop_eb2adf70",
+    "u_42cf5b2e:prop_f5e13a16",
+    "u_34c19cc5:prop_6326c614"
+  ],
+  "children": [],
+  "last_indexed": "2025-08-12T15:58:54.059972Z"
+}

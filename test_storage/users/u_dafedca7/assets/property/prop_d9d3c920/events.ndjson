@@ -1,0 +1,3 @@
+{"ts": "2025-07-26T15:58:54.056036Z", "type": "created", "data": {"initial": true, "for_rent_or_sale": "rent", "price": {"value": 36168, "currency": "THB", "period": "month"}}, "actor": "collector"}
+{"ts": "2025-08-02T15:58:54.056036Z", "type": "price_updated", "data": {"price": {"value": 36168, "currency": "THB", "period": "month"}}, "actor": "parser"}
+{"ts": "2025-08-16T15:58:54.056036Z", "type": "status_updated", "data": {"status": "leased"}, "actor": "indexer"}

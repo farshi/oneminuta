@@ -1,0 +1,2 @@
+{"ts": "2025-07-31T15:58:54.050933Z", "type": "created", "data": {"initial": true, "for_rent_or_sale": "rent", "price": {"value": 44177, "currency": "THB", "period": "month"}}, "actor": "collector"}
+{"ts": "2025-08-14T15:58:54.050933Z", "type": "price_updated", "data": {"price": {"value": 44177, "currency": "THB", "period": "month"}}, "actor": "parser"}

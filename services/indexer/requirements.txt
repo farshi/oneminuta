@@ -1,0 +1,6 @@
+# Indexer service dependencies
+aiofiles>=23.0.0
+ujson>=5.0.0
+python-dotenv>=1.0.0
+loguru>=0.7.0
+watchdog>=3.0.0  # For file monitoring

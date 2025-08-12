@@ -1,0 +1,25 @@
+{
+  "for_rent_or_sale": "sale",
+  "price": {
+    "value": 5553384,
+    "currency": "THB",
+    "period": null
+  },
+  "status": "available",
+  "last_updated": "2025-03-26T15:58:54.055528Z",
+  "spheri": {
+    "code": "3G6FBRV",
+    "bits_per_axis": 16,
+    "prefix_len": 8
+  },
+  "media": {
+    "telegram_file_ids": [],
+    "cloud_urls": [],
+    "local_paths": []
+  },
+  "bedrooms": null,
+  "bathrooms": null,
+  "area_sqm": 1646,
+  "furnished": null,
+  "parking": 2
+}

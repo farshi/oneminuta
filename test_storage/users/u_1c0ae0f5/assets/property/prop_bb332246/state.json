@@ -1,0 +1,25 @@
+{
+  "for_rent_or_sale": "rent",
+  "price": {
+    "value": 44177,
+    "currency": "THB",
+    "period": "month"
+  },
+  "status": "available",
+  "last_updated": "2025-07-31T15:58:54.050933Z",
+  "spheri": {
+    "code": "3G6FA6K",
+    "bits_per_axis": 16,
+    "prefix_len": 8
+  },
+  "media": {
+    "telegram_file_ids": [],
+    "cloud_urls": [],
+    "local_paths": []
+  },
+  "bedrooms": 2,
+  "bathrooms": 2,
+  "area_sqm": 167,
+  "furnished": true,
+  "parking": 1
+}

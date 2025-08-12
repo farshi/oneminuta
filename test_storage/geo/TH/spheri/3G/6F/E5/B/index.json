@@ -1,0 +1,15 @@
+{
+  "cell": "3G6FE5B",
+  "count": 1,
+  "by_status": {
+    "leased": 1
+  },
+  "by_asset_type": {
+    "rent": 1
+  },
+  "properties": [
+    "u_dafedca7:prop_d9d3c920"
+  ],
+  "children": [],
+  "last_indexed": "2025-08-12T15:58:54.061307Z"
+}

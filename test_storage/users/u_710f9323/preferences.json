@@ -1,0 +1,9 @@
+{
+  "language": "en",
+  "notify_hours_local": [
+    9,
+    18
+  ],
+  "radius_default_m": 5000,
+  "timezone": "Asia/Bangkok"
+}
