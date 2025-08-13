@@ -1,0 +1,202 @@
+#!/usr/bin/env python3
+"""
+OneMinuta Telegram Analytics CLI
+Main command-line interface for all analytics operations
+"""
+
+import sys
+import os
+import asyncio
+import argparse
+from pathlib import Path
+
+# Add project root to path  
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
+
+from services.analytics.config import get_config
+from services.analytics.session_manager import get_session_manager
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        prog='telegram-analytics',
+        description='OneMinuta Telegram Analytics - Identify hot property clients'
+    )
+    
+    subparsers = parser.add_subparsers(dest='command', help='Available commands')
+    
+    # Auth command
+    auth_parser = subparsers.add_parser('auth', help='Authenticate with Telegram')
+    auth_parser.add_argument('--phone', help='Phone number with country code')
+    
+    # Analyze command
+    analyze_parser = subparsers.add_parser('analyze', help='Analyze Telegram channels')
+    analyze_parser.add_argument('--days', type=int, default=3, help='Days to look back (default: 3)')
+    analyze_parser.add_argument('--channels', nargs='+', help='Specific channels to analyze')
+    
+    # Test command
+    test_parser = subparsers.add_parser('test', help='Run tests')
+    test_parser.add_argument('type', choices=['access', 'filter', 'performance', 'all'], 
+                            help='Type of test to run')
+    
+    # Monitor command
+    monitor_parser = subparsers.add_parser('monitor', help='Start real-time monitoring')
+    monitor_parser.add_argument('--duration', type=int, help='Duration in seconds (default: continuous)')
+    
+    # Debug command
+    debug_parser = subparsers.add_parser('debug', help='Debug channel messages')
+    debug_parser.add_argument('--channel', help='Specific channel to debug')
+    debug_parser.add_argument('--limit', type=int, default=10, help='Number of messages to check')
+    
+    # List command
+    list_parser = subparsers.add_parser('list', help='List hot clients')
+    list_parser.add_argument('--min-score', type=float, default=60.0, help='Minimum hotness score')
+    list_parser.add_argument('--limit', type=int, default=10, help='Maximum clients to show')
+    
+    # Clean command
+    clean_parser = subparsers.add_parser('clean', help='Clean storage and sessions')
+    clean_parser.add_argument('--keep-sessions', action='store_true', help='Keep session files')
+    
+    args = parser.parse_args()
+    
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
+    
+    # Load environment
+    from dotenv import load_dotenv
+    load_dotenv()
+    
+    # Run appropriate command
+    if args.command == 'auth':
+        asyncio.run(run_auth(args))
+    elif args.command == 'analyze':
+        asyncio.run(run_analyze(args))
+    elif args.command == 'test':
+        asyncio.run(run_test(args))
+    elif args.command == 'monitor':
+        asyncio.run(run_monitor(args))
+    elif args.command == 'debug':
+        asyncio.run(run_debug(args))
+    elif args.command == 'list':
+        asyncio.run(run_list(args))
+    elif args.command == 'clean':
+        run_clean(args)
+
+
+async def run_auth(args):
+    """Run authentication"""
+    from services.analytics.session_manager import TelegramSessionManager
+    
+    api_id = int(os.getenv('TELEGRAM_API_ID', 0))
+    api_hash = os.getenv('TELEGRAM_API_HASH', '')
+    
+    if not api_id or not api_hash:
+        print("❌ Please set TELEGRAM_API_ID and TELEGRAM_API_HASH in .env")
+        return
+    
+    manager = TelegramSessionManager(api_id, api_hash)
+    success = await manager.authenticate_interactive(phone=args.phone)
+    
+    if success:
+        print("✅ Authentication successful!")
+    else:
+        print("❌ Authentication failed")
+    
+    await manager.disconnect()
+
+
+async def run_analyze(args):
+    """Run channel analysis"""
+    from scripts.analyze_channels_only import analyze_channels_historical
+    
+    config = get_config()
+    channels = args.channels or config.DEFAULT_CHANNELS
+    print(f"📊 Analyzing {', '.join(channels)} for last {args.days} days...")
+    
+    await analyze_channels_historical(days_back=args.days)
+
+
+async def run_test(args):
+    """Run tests"""
+    if args.type == 'access':
+        from tests.test_channel_access import test_channels
+        await test_channels()
+    elif args.type == 'filter':
+        from scripts.debug_channel_messages import debug_messages
+        await debug_messages()
+    elif args.type == 'performance':
+        from tests.test_performance import test_performance
+        await test_performance()
+    elif args.type == 'all':
+        print("🧪 Running all tests...")
+        
+        print("\n1️⃣ Testing channel access...")
+        from tests.test_channel_access import test_channels
+        await test_channels()
+        
+        print("\n2️⃣ Testing message filtering...")
+        from scripts.debug_channel_messages import debug_messages
+        await debug_messages()
+        
+        print("\n✅ All tests completed!")
+
+
+async def run_monitor(args):
+    """Run real-time monitoring"""
+    from tests.test_realtime_monitor import start_realtime_monitor
+    
+    if args.duration:
+        print(f"📡 Starting monitor for {args.duration} seconds...")
+        await asyncio.wait_for(start_realtime_monitor(), timeout=args.duration)
+    else:
+        print("📡 Starting continuous monitoring (Ctrl+C to stop)...")
+        await start_realtime_monitor()
+
+
+async def run_debug(args):
+    """Debug channel messages"""
+    from scripts.debug_channel_messages import debug_messages
+    await debug_messages()
+
+
+async def run_list(args):
+    """List hot clients"""
+    from services.analytics.cli import list_hot_clients
+    from argparse import Namespace
+    
+    cli_args = Namespace(
+        min_score=args.min_score,
+        limit=args.limit,
+        verbose=True
+    )
+    await list_hot_clients(cli_args)
+
+
+def run_clean(args):
+    """Clean storage and sessions"""
+    import shutil
+    
+    print("🧹 Cleaning up...")
+    
+    # Clean analytics storage
+    analytics_path = Path('./storage/analytics')
+    if analytics_path.exists():
+        shutil.rmtree(analytics_path)
+        analytics_path.mkdir(parents=True)
+        print("✅ Cleaned analytics storage")
+    
+    # Clean sessions unless keeping
+    if not args.keep_sessions:
+        sessions_path = Path('./sessions')
+        if sessions_path.exists():
+            shutil.rmtree(sessions_path)
+            sessions_path.mkdir()
+            print("✅ Cleaned session files")
+    
+    print("🧹 Cleanup complete!")
+
+
+if __name__ == '__main__':
+    main()
