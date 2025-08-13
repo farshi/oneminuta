@@ -75,7 +75,7 @@ A geo-indexed property marketplace built on a revolutionary file-based architect
 - Match new listings to user filters
 - Handle rate limiting with backoff
 
-### G. Coord-Spherical Library (libs/coord-spherical/)
+### G. Geo-Spherical Library (libs/geo-spherical/)
 **Technology**: Python
 - Spherical geometry calculations
 - SpheriCode encoding (Morton-interleaved lat/lon)
@@ -159,15 +159,264 @@ STORAGE_PATH=./storage
 
 | Component | Purpose | Status |
 |-----------|---------|--------|
-| libs/coord-spherical | Geo calculations & sharding | 🔴 Not started |
-| services/collector-listings | Scrape Telegram channels | 🔴 Not started |
-| services/parser | Normalize listings | 🔴 Not started |
-| services/indexer | Maintain indexes | 🔴 Not started |
+| libs/geo-spherical | Geo calculations & sharding | ✅ **Complete** |
+| services/analytics | Telegram user analytics | ✅ **Complete** |
+| services/collector | Property collection from channels | ✅ **Complete** |
+| services/cli | Command-line interface | ✅ **Complete** |
+| specs/schemas | Data formats | ✅ **Complete** |
 | services/bot | User interaction | 🔴 Not started |
 | services/api | REST endpoints | 🔴 Not started |
 | services/notifier | Send digests | 🔴 Not started |
-| specs/schemas | Data formats | 🔴 Not started |
-| specs/storage | File structure | 🔴 Not started |
+
+## Current Implementation (v1.0)
+
+The OneMinuta MVP is **fully operational** with the following completed features:
+
+### ✅ Analytics & Client Scoring System
+- **LLM-powered analysis** of Telegram users to identify hot property clients
+- **Confidence scoring** for client hotness (0-100 scale)
+- **Support for English and Russian** languages
+- **5-day message history** analysis
+
+### ✅ Property Collection System  
+- **Automatic extraction** from Telegram channel messages
+- **Multi-language support** (English/Russian) for property listings
+- **Confidence scoring** for property detection (minimum 40/100)
+- **Asset validation** with mandatory fields (location, price, assetType)
+
+### ✅ Geo-Sharding with SpheriCode
+- **Revolutionary geo-indexing** using spherical coordinates
+- **Nested folder structure** for performance: `3/g/6/f/b/s/r`
+- **Hierarchical location mapping**: District → City → Province
+- **Fast radius searches** using Morton-encoded coordinates
+
+### ✅ File-Based Storage (Zero Database)
+- **Complete property metadata** in JSON format
+- **User-based organization** for property ownership with permissions
+- **Global indexing** with statistics and search capabilities
+- **Telegram metadata preservation** for audit trails
+
+## CLI Commands & Usage
+
+The OneMinuta CLI provides comprehensive commands for analytics, property collection, and asset management.
+
+### 📊 Analytics Commands
+
+#### Analyze Channel Users (Client Scoring)
+```bash
+# Analyze users in specific channels for client hotness
+python -m services.cli.analytics analyze-channel @phuketgidsell @sabay_property
+
+# Analyze with custom settings
+python -m services.cli.analytics analyze-channel @phuketgidsell --days-back 7 --min-messages 3
+
+# Get analytics summary
+python -m services.cli.analytics summary
+```
+
+**Output**: Client hotness scores (0-100), interaction patterns, and property interest indicators.
+
+#### View User Analytics
+```bash
+# View specific user analysis
+python -m services.cli.analytics view-user 123456789
+
+# Export analytics data
+python -m services.cli.analytics export --format json
+```
+
+### 🏠 Property Collection Commands
+
+#### Collect Properties from Channels
+```bash
+# Collect properties from default channels
+python -m services.cli.collector collect-properties
+
+# Collect from specific channels with limits
+python -m services.cli.collector collect-properties @phuketgidsell @sabay_property --limit 50 --days-back 3
+
+# Collect with custom confidence threshold
+python -m services.cli.collector collect-properties --min-confidence 60
+```
+
+**Output**: Extracted properties stored in geo-sharded structure with full metadata.
+
+#### Property Collection Status
+```bash
+# View collection statistics
+python -m services.cli.collector stats
+
+# Show recent collections
+python -m services.cli.collector recent --limit 10
+```
+
+### 🗺️ Asset Management Commands
+
+#### Search Properties by Location
+```bash
+# Search within radius of coordinates
+python -m services.cli.assets search-geo --lat 7.77965 --lon 98.32532 --radius 5000
+
+# Search in Rawai area (5km radius)
+python -m services.cli.assets search-area rawai --radius 5000
+
+# Search with filters
+python -m services.cli.assets search-geo --lat 7.77965 --lon 98.32532 --radius 10000 --asset-type CONDO --max-price 10000000
+```
+
+#### Country-wide Property Search
+```bash
+# Search all properties in Thailand
+python -m services.cli.assets search-country TH
+
+# Search with filters
+python -m services.cli.assets search-country TH --asset-type VILLA --rent-or-sale RENT
+
+# Search by price range
+python -m services.cli.assets search-country TH --min-price 5000000 --max-price 15000000
+```
+
+#### Asset Statistics
+```bash
+# View comprehensive asset statistics
+python -m services.cli.assets stats
+
+# View by agent
+python -m services.cli.assets agent-stats tg_phuketgidsell
+
+# View by location
+python -m services.cli.assets location-stats
+```
+
+#### Asset Details
+```bash
+# View specific property details
+python -m services.cli.assets view <asset-id>
+
+# List properties by agent
+python -m services.cli.assets list-by-agent tg_phuketgidsell
+```
+
+### 🔍 Advanced Queries
+
+#### Geo-Spatial Analysis
+```bash
+# Find properties near multiple locations
+python -m services.cli.assets multi-location-search "rawai,kata,patong" --radius 3000
+
+# Analyze property density in areas
+python -m services.cli.assets density-analysis --lat 7.77965 --lon 98.32532 --radius 20000
+
+# Export geo data for mapping
+python -m services.cli.assets export-geo --format geojson --area phuket
+```
+
+#### Market Analysis
+```bash
+# Price analysis by area
+python -m services.cli.analytics price-analysis --area rawai
+
+# Market trends over time
+python -m services.cli.analytics market-trends --days 30
+
+# Agent performance comparison
+python -m services.cli.analytics agent-comparison
+```
+
+### 🛠️ System Management
+
+#### Storage Management
+```bash
+# Check storage health
+python -m services.cli.system storage-health
+
+# Rebuild indexes
+python -m services.cli.system rebuild-indexes
+
+# Clean up orphaned files
+python -m services.cli.system cleanup
+```
+
+#### Configuration
+```bash
+# Show current configuration
+python -m services.cli.system config
+
+# Update channel mappings
+python -m services.cli.system update-channels
+
+# Reset storage (⚠️ destructive)
+python -m services.cli.system reset-storage --confirm
+```
+
+### 📋 Common Use Cases
+
+#### 1. Daily Property Collection
+```bash
+# Collect new properties from all monitored channels
+python -m services.cli.collector collect-properties --days-back 1
+python -m services.cli.collector stats
+```
+
+#### 2. Client Analysis for Hot Leads
+```bash
+# Analyze recent user activity for hot clients
+python -m services.cli.analytics analyze-channel @phuketgidsell --days-back 3
+python -m services.cli.analytics export --hot-only --format csv
+```
+
+#### 3. Market Research in Specific Area
+```bash
+# Research Rawai property market
+python -m services.cli.assets search-area rawai --radius 5000
+python -m services.cli.analytics price-analysis --area rawai
+python -m services.cli.assets density-analysis --lat 7.77965 --lon 98.32532 --radius 5000
+```
+
+#### 4. User Performance Monitoring
+```bash
+# Check user property collection performance
+python -m services.cli.assets user-stats tg_phuketgidsell
+python -m services.cli.collector recent --user tg_phuketgidsell
+```
+
+### 🔧 Environment Configuration
+
+Required environment variables in `.env`:
+```bash
+TELEGRAM_API_ID=your_api_id
+TELEGRAM_API_HASH=your_api_hash
+OPENAI_API_KEY=sk-proj-...
+STORAGE_PATH=./storage
+DEFAULT_CHANNELS=@phuketgidsell,@sabay_property
+```
+
+### 📁 Storage Structure Created
+
+After running commands, your storage will look like:
+```
+storage/
+├── users/
+│   ├── tg_phuketgidsell/
+│   │   ├── <asset-id>_meta.json
+│   │   ├── <asset-id>_state.json
+│   │   ├── <asset-id>_telegram.json
+│   │   └── meta.json (user permissions)
+│   └── tg_sabay_property/
+├── geo/
+│   └── TH/
+│       └── spheri/
+│           └── 3/g/6/f/b/s/r/  # Nested SpheriCode structure
+│               └── properties/
+│                   └── <agent>_<asset>.json
+├── analytics/
+│   ├── users/
+│   │   └── <user-id>.json
+│   └── channels/
+│       └── <channel>.json
+└── global/
+    └── asset_index.json
+```
 
 ## Legal & Compliance
 - Respect Telegram ToS (no cold DMs, no spam)

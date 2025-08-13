@@ -21,9 +21,9 @@ A geo-indexed marketplace platform that will eventually support all asset types,
 
 3. **CLI Tool for Testing**
    ```bash
-   oneminute search --lat 7.78 --lon 98.33 --radius 3000 --rent
-   oneminute show --id u_123:prop_001
-   oneminute reindex
+   oneminuta search --lat 7.78 --lon 98.33 --radius 3000 --rent
+   oneminuta show --id u_123:prop_001
+   oneminuta reindex
    ```
 
 4. **File Watcher Service**

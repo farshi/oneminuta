@@ -58,6 +58,34 @@ def main():
     clean_parser = subparsers.add_parser('clean', help='Clean storage and sessions')
     clean_parser.add_argument('--keep-sessions', action='store_true', help='Keep session files')
     
+    # Property Collection Commands
+    collect_parser = subparsers.add_parser('collect', help='Collect properties from Telegram channels')
+    collect_parser.add_argument('--days', type=int, default=7, help='Days to look back (default: 7)')
+    collect_parser.add_argument('--channels', nargs='+', help='Specific channels to collect from')
+    collect_parser.add_argument('--limit', type=int, default=100, help='Max messages per channel')
+    collect_parser.add_argument('--dry-run', action='store_true', help='Show what would be collected without storing')
+    
+    properties_parser = subparsers.add_parser('properties', help='List collected properties')
+    properties_parser.add_argument('--limit', type=int, default=20, help='Max properties to show')
+    properties_parser.add_argument('--type', help='Filter by asset type (condo, house, land)')
+    properties_parser.add_argument('--transaction', help='Filter by transaction (sale, rent)')
+    properties_parser.add_argument('--agent', help='Filter by agent ID')
+    properties_parser.add_argument('--min-price', type=float, help='Minimum price')
+    properties_parser.add_argument('--max-price', type=float, help='Maximum price')
+    
+    stats_parser = subparsers.add_parser('stats', help='Show collection statistics')
+    
+    extract_test_parser = subparsers.add_parser('extract-test', help='Test property extraction on sample text')
+    extract_test_parser.add_argument('text', help='Sample property listing text to test')
+    
+    geo_test_parser = subparsers.add_parser('geo-test', help='Test geo-spatial search')
+    geo_test_parser.add_argument('lat', type=float, help='Center latitude')
+    geo_test_parser.add_argument('lon', type=float, help='Center longitude')
+    geo_test_parser.add_argument('radius', type=float, help='Search radius in meters')
+    
+    country_test_parser = subparsers.add_parser('country-test', help='Test country-wide asset search')
+    country_test_parser.add_argument('--country', default='TH', help='Country code (default: TH)')
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -83,6 +111,18 @@ def main():
         asyncio.run(run_list(args))
     elif args.command == 'clean':
         run_clean(args)
+    elif args.command == 'collect':
+        asyncio.run(run_collect(args))
+    elif args.command == 'properties':
+        asyncio.run(run_properties(args))
+    elif args.command == 'stats':
+        run_stats(args)
+    elif args.command == 'extract-test':
+        asyncio.run(run_extract_test(args))
+    elif args.command == 'geo-test':
+        asyncio.run(run_geo_test(args))
+    elif args.command == 'country-test':
+        asyncio.run(run_country_test(args))
 
 
 async def run_auth(args):
@@ -196,6 +236,78 @@ def run_clean(args):
             print("✅ Cleaned session files")
     
     print("🧹 Cleanup complete!")
+
+
+async def run_collect(args):
+    """Run property collection"""
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.collector.cli import PropertyCollectionCLI
+    
+    cli = PropertyCollectionCLI()
+    await cli.collect_properties(
+        channels=args.channels,
+        days_back=args.days,
+        limit=args.limit,
+        dry_run=args.dry_run
+    )
+
+
+async def run_properties(args):
+    """List collected properties"""
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.collector.cli import PropertyCollectionCLI
+    
+    # Build filters
+    filters = {}
+    if args.type:
+        filters['asset_type'] = args.type
+    if args.transaction:
+        filters['rent_or_sale'] = args.transaction
+    if args.agent:
+        filters['agent_id'] = args.agent
+    if args.min_price:
+        filters['min_price'] = args.min_price
+    if args.max_price:
+        filters['max_price'] = args.max_price
+    
+    cli = PropertyCollectionCLI()
+    await cli.list_properties(limit=args.limit, filters=filters)
+
+
+def run_stats(args):
+    """Show collection statistics"""
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.collector.cli import PropertyCollectionCLI
+    
+    cli = PropertyCollectionCLI()
+    cli.show_stats()
+
+
+async def run_extract_test(args):
+    """Test property extraction"""
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.collector.cli import PropertyCollectionCLI
+    
+    cli = PropertyCollectionCLI()
+    await cli.test_extraction(args.text)
+
+
+async def run_geo_test(args):
+    """Test geo-spatial search"""
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.collector.cli import PropertyCollectionCLI
+    
+    cli = PropertyCollectionCLI()
+    await cli.test_geo_search(args.lat, args.lon, args.radius)
+
+
+async def run_country_test(args):
+    """Test country-wide search"""
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+    from services.collector.cli import PropertyCollectionCLI
+    
+    cli = PropertyCollectionCLI()
+    await cli.test_country_search(args.country)
 
 
 if __name__ == '__main__':

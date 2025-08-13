@@ -55,6 +55,25 @@ telegram-clean: ## Clean analytics storage
 telegram-clean-all: ## Clean everything including sessions
 	./services/analytics/cli clean
 
+# Property Collection Commands
+property-collect: ## Collect properties from Telegram channels (last 7 days)
+	./services/analytics/cli collect --days 7
+
+property-collect-dry: ## Dry run property collection (show what would be collected)
+	./services/analytics/cli collect --days 7 --dry-run
+
+property-collect-week: ## Collect properties from last 14 days
+	./services/analytics/cli collect --days 14
+
+property-list: ## List collected properties
+	./services/analytics/cli properties --limit 20
+
+property-stats: ## Show property collection statistics
+	./services/analytics/cli stats
+
+property-test: ## Test property extraction on sample text
+	./services/analytics/cli extract-test "For sale: 2 bedroom condo in Phuket, price 5 million baht. Contact: +66123456789"
+
 # Unit Tests
 test-analytics: ## Run analytics unit tests
 	$(PYTHON) -m pytest tests/unit/analytics/ -v

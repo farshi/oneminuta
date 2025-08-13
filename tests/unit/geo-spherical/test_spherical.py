@@ -4,6 +4,12 @@ Tests for spherical coordinate library
 
 import math
 import pytest
+import sys
+import os
+
+# Add geo-spherical libs to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(project_root, 'libs', 'geo-spherical'))
 from spherical import (
     lat_lon_to_unit, unit_to_lat_lon, surface_distance,
     inside_cap, inside_cap_batch, sort_by_dot, bounding_box

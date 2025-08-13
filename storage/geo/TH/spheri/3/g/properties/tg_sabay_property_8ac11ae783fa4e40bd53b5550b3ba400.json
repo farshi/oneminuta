@@ -1,0 +1,14 @@
+{
+  "user_id": "tg_sabay_property",
+  "asset_id": "8ac11ae783fa4e40bd53b5550b3ba400",
+  "asset_type": "house",
+  "price": 0.0,
+  "currency": "THB",
+  "rent_or_sale": "sale",
+  "status": "available",
+  "lat": 7.8804,
+  "lon": 98.3923,
+  "created_at": "2025-08-08 14:32:01+00:00",
+  "spheri_code": "3G6FBSR",
+  "spheri_prefix": "3G"
+}

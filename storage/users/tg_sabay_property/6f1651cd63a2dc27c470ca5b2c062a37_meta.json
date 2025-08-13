@@ -1,0 +1,15 @@
+{
+  "id": "6f1651cd63a2dc27c470ca5b2c062a37",
+  "owner_user_id": "tg_sabay_property",
+  "asset_type": "condo",
+  "location": {
+    "city": "Phuket",
+    "area": "Phuket",
+    "lat": 7.8804,
+    "lon": 98.3923,
+    "country": "TH"
+  },
+  "created_at": "2025-08-11 06:02:17+00:00",
+  "source_channel": "@sabay_property",
+  "source_message_id": 2598
+}

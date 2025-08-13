@@ -5,7 +5,9 @@ Debug SpheriCode implementation
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+# Add geo-spherical libs to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(project_root, 'libs', 'geo-spherical'))
 
 from sphericode import encode_sphericode, decode_sphericode, morton_encode, morton_decode
 

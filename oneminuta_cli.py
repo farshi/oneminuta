@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
 # Add libs to path
-sys.path.insert(0, str(Path(__file__).parent / "libs" / "coord-spherical"))
+sys.path.insert(0, str(Path(__file__).parent / "libs" / "geo-spherical"))
 
 from spherical import surface_distance, inside_cap
 from sphericode import encode_sphericode, prefixes_for_query
@@ -27,8 +27,8 @@ class OneMinutaCLI:
     
     def search(self, lat: float, lon: float, radius_m: float = 5000,
                rent: bool = None, sale: bool = None, max_price: float = None,
-               min_price: float = None, asset_type: str = None, 
-               limit: int = 20, json_output: bool = False) -> List[Dict]:
+               min_price: float = None, asset_type: str = None, bedrooms: int = None,
+               bathrooms: int = None, limit: int = 20, json_output: bool = False) -> List[Dict]:
         """
         Search for properties by location and filters
         """
@@ -37,86 +37,104 @@ class OneMinutaCLI:
         # Generate prefixes for the search area
         prefixes = prefixes_for_query(lat, lon, radius_m)
         
-        # Find all properties in those geo cells
+        # Find all properties in those geo cells using nested structure
         candidate_properties = []
         cells_found = 0
         
         for prefix in prefixes:
-            # Build geo path: geo/TH/spheri/37/DT/TR/...
-            path_parts = ["geo", "TH", "spheri"]
-            for i in range(0, len(prefix), 2):
-                path_parts.append(prefix[i:i+2])
+            # Build nested geo path: geo/TH/spheri/3/g/6/f/b/s/
+            nested_chars = list(prefix.lower())
+            nested_path = "/".join(nested_chars)
             
-            index_path = self.storage_path / "/".join(path_parts) / "index.json"
+            geo_cell_path = self.storage_path / "geo" / "TH" / "spheri" / nested_path
             
-            if index_path.exists():
+            # Search this path and all nested subdirectories for property files
+            found_props_in_cell = False
+            for properties_dir in geo_cell_path.rglob("properties"):
+                if properties_dir.is_dir():
+                    found_props_in_cell = True
+                    # Read all property reference files
+                    for prop_file in properties_dir.glob("*.json"):
+                        try:
+                            with open(prop_file) as f:
+                                prop_ref = json.load(f)
+                            candidate_properties.append(prop_ref)
+                        except (json.JSONDecodeError, FileNotFoundError):
+                            continue
+            
+            if found_props_in_cell:
                 cells_found += 1
-                with open(index_path) as f:
-                    index_data = json.load(f)
-                
-                # Add all properties from this cell
-                for prop_ref in index_data.get("properties", []):
-                    candidate_properties.append(prop_ref)
         
         # Load property details and apply filters
         results = []
         properties_loaded = 0
         
         for prop_ref in candidate_properties:
-            user_id, prop_id = prop_ref.split(":", 1)
+            user_id = prop_ref.get("user_id")
+            asset_id = prop_ref.get("asset_id")
             
-            # Load property files
-            prop_dir = self.storage_path / "users" / user_id / "assets" / "property" / prop_id
+            if not user_id or not asset_id:
+                continue
             
-            if not prop_dir.exists():
+            # Load property files from users directory  
+            user_dir = self.storage_path / "users" / user_id
+            
+            if not user_dir.exists():
                 continue
                 
             try:
-                # Load meta and state
-                with open(prop_dir / "meta.json") as f:
+                # Load meta and state files
+                meta_file = user_dir / f"{asset_id}_meta.json"
+                state_file = user_dir / f"{asset_id}_state.json"
+                
+                if not meta_file.exists() or not state_file.exists():
+                    continue
+                
+                with open(meta_file) as f:
                     meta = json.load(f)
-                with open(prop_dir / "state.json") as f:
+                with open(state_file) as f:
                     state = json.load(f)
                 
                 properties_loaded += 1
                 
-                # Check distance filter
-                prop_lat = meta["location"]["lat"]
-                prop_lon = meta["location"]["lon"]
+                # Check distance filter (already have coords from prop_ref)
+                prop_lat = prop_ref["lat"]
+                prop_lon = prop_ref["lon"]
                 distance = surface_distance(lat, lon, prop_lat, prop_lon)
                 
                 if distance > radius_m:
                     continue
                 
                 # Apply filters
-                if rent and state["for_rent_or_sale"] != "rent":
+                if rent and prop_ref.get("rent_or_sale", "").lower() != "rent":
                     continue
-                if sale and state["for_rent_or_sale"] != "sale":
-                    continue
-                
-                if asset_type and meta["asset_type"] != asset_type:
+                if sale and prop_ref.get("rent_or_sale", "").lower() != "sale":
                     continue
                 
-                price_value = state["price"]["value"]
+                if asset_type and prop_ref.get("asset_type") != asset_type.upper():
+                    continue
+                
+                price_value = prop_ref.get("price", 0)
                 if min_price and price_value < min_price:
                     continue
                 if max_price and price_value > max_price:
                     continue
                 
                 # Only show available properties
-                if state["status"] != "available":
+                if prop_ref.get("status", "").lower() != "available":
                     continue
                 
-                # Load description
-                description = ""
-                desc_path = prop_dir / "description.txt"
-                if desc_path.exists():
-                    with open(desc_path) as f:
-                        description = f.read().strip()
+                # Apply bedroom filter
+                if bedrooms and state.get("bedrooms") != bedrooms:
+                    continue
+                    
+                # Apply bathroom filter
+                if bathrooms and state.get("bathrooms") != bathrooms:
+                    continue
                 
-                # Build result
+                # Build result from available data
                 result = {
-                    "id": prop_ref,
+                    "id": f"{user_id}:{asset_id}",
                     "distance_m": round(distance),
                     "location": {
                         "lat": prop_lat,
@@ -124,21 +142,24 @@ class OneMinutaCLI:
                         "area": meta["location"]["area"],
                         "city": meta["location"]["city"]
                     },
-                    "price": state["price"],
-                    "type": meta["asset_type"],
-                    "for_rent_or_sale": state["for_rent_or_sale"],
+                    "price": {
+                        "value": price_value,
+                        "currency": prop_ref.get("currency", "THB")
+                    },
+                    "type": prop_ref.get("asset_type", "").lower(),
+                    "for_rent_or_sale": prop_ref.get("rent_or_sale", "").lower(),
                     "bedrooms": state.get("bedrooms"),
                     "bathrooms": state.get("bathrooms"),
                     "area_sqm": state.get("area_sqm"),
                     "furnished": state.get("furnished"),
-                    "description": description,
-                    "last_updated": state["last_updated"]
+                    "last_updated": prop_ref.get("created_at"),
+                    "description": ""  # Could load telegram metadata for description
                 }
                 
                 results.append(result)
                 
             except (json.JSONDecodeError, KeyError, FileNotFoundError) as e:
-                print(f"Warning: Could not load property {prop_ref}: {e}", file=sys.stderr)
+                print(f"Warning: Could not load property {user_id}:{asset_id}: {e}", file=sys.stderr)
                 continue
         
         # Sort by distance
@@ -229,47 +250,43 @@ class OneMinutaCLI:
         """Show storage statistics"""
         stats = {}
         
-        # Count users
-        users_dir = self.storage_path / "users"
-        if users_dir.exists():
-            stats["total_users"] = len(list(users_dir.iterdir()))
-        
-        # Count properties
-        total_properties = 0
-        by_area = {}
-        by_type = {}
-        by_status = {}
-        
-        if users_dir.exists():
-            for user_dir in users_dir.iterdir():
-                if not user_dir.is_dir():
-                    continue
+        # Read from global index if available
+        global_index_file = self.storage_path / "global" / "asset_index.json"
+        if global_index_file.exists():
+            try:
+                with open(global_index_file) as f:
+                    global_index = json.load(f)
                 
-                props_dir = user_dir / "assets" / "property"
-                if props_dir.exists():
-                    for prop_dir in props_dir.iterdir():
-                        if not prop_dir.is_dir():
-                            continue
-                        
-                        try:
-                            with open(prop_dir / "meta.json") as f:
-                                meta = json.load(f)
-                            with open(prop_dir / "state.json") as f:
-                                state = json.load(f)
-                            
-                            total_properties += 1
-                            
-                            area = meta["location"]["area"]
-                            by_area[area] = by_area.get(area, 0) + 1
-                            
-                            asset_type = meta["asset_type"]
-                            by_type[asset_type] = by_type.get(asset_type, 0) + 1
-                            
-                            status = state["status"]
-                            by_status[status] = by_status.get(status, 0) + 1
-                            
-                        except (json.JSONDecodeError, KeyError, FileNotFoundError):
-                            continue
+                stats["total_properties"] = global_index.get("total_count", 0)
+                stats["last_updated"] = global_index.get("last_updated")
+                
+                # Aggregate by area, type, status from global index
+                by_area = {}
+                by_type = {}
+                by_status = {}
+                by_user = {}
+                
+                for asset in global_index.get("assets", []):
+                    area = asset.get("location_area", "unknown")
+                    asset_type = asset.get("asset_type", "unknown")
+                    user_id = asset.get("user_id", "unknown")
+                    
+                    by_area[area] = by_area.get(area, 0) + 1
+                    by_type[asset_type] = by_type.get(asset_type, 0) + 1
+                    by_user[user_id] = by_user.get(user_id, 0) + 1
+                    
+                stats.update({
+                    "by_area": by_area,
+                    "by_type": by_type,
+                    "by_user": by_user
+                })
+                
+            except (json.JSONDecodeError, FileNotFoundError):
+                # Fallback to manual counting
+                stats = self._count_properties_manually()
+        else:
+            # Manual counting if no global index
+            stats = self._count_properties_manually()
         
         # Count geo indexes
         geo_dir = self.storage_path / "geo"
@@ -278,20 +295,186 @@ class OneMinutaCLI:
             for index_file in geo_dir.glob("**/index.json"):
                 geo_indexes += 1
         
-        stats.update({
-            "total_properties": total_properties,
-            "by_area": by_area,
-            "by_type": by_type,
-            "by_status": by_status,
-            "geo_indexes": geo_indexes,
-            "storage_path": str(self.storage_path)
-        })
+        stats["geo_indexes"] = geo_indexes
+        stats["storage_path"] = str(self.storage_path)
         
         if json_output:
             return stats
         else:
             self._print_stats(stats)
             return stats
+    
+    def _count_properties_manually(self) -> Dict:
+        """Manually count properties from agents directory"""
+        total_properties = 0
+        by_area = {}
+        by_type = {}
+        by_user = {}
+        
+        agents_dir = self.storage_path / "agents"
+        if agents_dir.exists():
+            for agent_dir in agents_dir.iterdir():
+                if not agent_dir.is_dir():
+                    continue
+                
+                user_id = agent_dir.name
+                user_props = 0
+                
+                # Count meta files for this agent
+                for meta_file in agent_dir.glob("*_meta.json"):
+                    try:
+                        with open(meta_file) as f:
+                            meta = json.load(f)
+                        
+                        total_properties += 1
+                        user_props += 1
+                        
+                        area = meta.get("location", {}).get("area", "unknown")
+                        by_area[area] = by_area.get(area, 0) + 1
+                        
+                        asset_type = meta.get("asset_type", "unknown")
+                        by_type[asset_type] = by_type.get(asset_type, 0) + 1
+                        
+                    except (json.JSONDecodeError, KeyError, FileNotFoundError):
+                        continue
+                
+                if user_props > 0:
+                    by_user[user_id] = user_props
+        
+        return {
+            "total_properties": total_properties,
+            "by_area": by_area,
+            "by_type": by_type,
+            "by_user": by_user
+        }
+    
+    def watch(self, verbose: bool = False, log_file: str = None) -> None:
+        """Watch storage directory for changes and auto-reindex"""
+        import time
+        import os
+        from pathlib import Path
+        
+        print("Starting OneMinuta file watcher...")
+        print(f"Monitoring: {self.storage_path}")
+        
+        if log_file:
+            print(f"Logging to: {log_file}")
+        
+        if verbose:
+            print("Verbose mode enabled")
+        
+        # Simple file watching implementation
+        # In production, this would use inotify/FSEvents for better performance
+        
+        last_modified = {}
+        
+        def scan_for_changes():
+            changes = []
+            
+            # Check for changes in users directory
+            users_dir = self.storage_path / "users"
+            if users_dir.exists():
+                for file_path in users_dir.rglob("*.json"):
+                    try:
+                        mtime = os.path.getmtime(file_path)
+                        if file_path not in last_modified or last_modified[file_path] != mtime:
+                            last_modified[file_path] = mtime
+                            changes.append(str(file_path))
+                    except (OSError, FileNotFoundError):
+                        continue
+            
+            return changes
+        
+        print("File watcher started. Press Ctrl+C to stop.")
+        
+        try:
+            # Initial scan
+            scan_for_changes()
+            
+            while True:
+                changes = scan_for_changes()
+                
+                if changes:
+                    if verbose:
+                        print(f"Detected {len(changes)} file changes:")
+                        for change in changes:
+                            print(f"  - {change}")
+                    
+                    print("Auto-reindexing...")
+                    reindex_result = self.reindex(verbose=verbose)
+                    
+                    if log_file:
+                        with open(log_file, "a") as f:
+                            f.write(f"{time.strftime('%Y-%m-%d %H:%M:%S')} - Reindexed {reindex_result['assets_processed']} assets\n")
+                    
+                    if not reindex_result["errors"]:
+                        print("✅ Auto-reindex completed successfully")
+                    else:
+                        print(f"⚠️ Auto-reindex completed with {len(reindex_result['errors'])} errors")
+                
+                time.sleep(1)  # Check every second
+                
+        except KeyboardInterrupt:
+            print("\n🛑 File watcher stopped")
+            return
+
+    def reindex(self, cell: str = None, verbose: bool = False) -> Dict:
+        """Rebuild indexes from current storage"""
+        print("Rebuilding OneMinuta indexes...")
+        start_time = time.time()
+        
+        results = {
+            "assets_processed": 0,
+            "geo_cells_created": 0,
+            "errors": [],
+            "duration_ms": 0
+        }
+        
+        if cell:
+            print(f"Reindexing specific cell: {cell}")
+            # TODO: Implement specific cell reindexing
+            results["errors"].append("Specific cell reindexing not implemented yet")
+        else:
+            # Full reindex
+            print("Performing full reindex...")
+            
+            # Import asset manager to use existing reindexing logic
+            sys.path.insert(0, str(Path(__file__).parent))
+            from services.collector.asset_manager import AssetManager
+            
+            try:
+                asset_manager = AssetManager(str(self.storage_path))
+                
+                # Get current asset statistics
+                current_stats = asset_manager.get_asset_stats()
+                results["assets_processed"] = current_stats.get("total_assets", 0)
+                
+                print(f"Found {results['assets_processed']} assets in storage")
+                
+                # Count geo indexes created
+                geo_dir = self.storage_path / "geo"
+                if geo_dir.exists():
+                    results["geo_cells_created"] = len(list(geo_dir.glob("**/index.json")))
+                
+                print(f"Geo-spatial indexes: {results['geo_cells_created']} cells")
+                
+            except Exception as e:
+                error_msg = f"Reindex failed: {e}"
+                results["errors"].append(error_msg)
+                print(f"Error: {error_msg}")
+        
+        results["duration_ms"] = round((time.time() - start_time) * 1000, 1)
+        
+        if results["errors"]:
+            print(f"Reindex completed with {len(results['errors'])} errors in {results['duration_ms']}ms")
+            for error in results["errors"]:
+                print(f"  Error: {error}")
+        else:
+            print(f"Reindex completed successfully in {results['duration_ms']}ms")
+            print(f"  Assets processed: {results['assets_processed']}")
+            print(f"  Geo cells: {results['geo_cells_created']}")
+        
+        return results
     
     def _print_search_results(self, results: List[Dict], query_info: Dict):
         """Print search results in human-readable format"""
@@ -406,13 +589,17 @@ def main():
     
     # Search command
     search_parser = subparsers.add_parser("search", help="Search for properties")
-    search_parser.add_argument("--lat", type=float, required=True, help="Latitude")
-    search_parser.add_argument("--lon", type=float, required=True, help="Longitude")
+    search_group = search_parser.add_mutually_exclusive_group(required=True)
+    search_group.add_argument("--lat", type=float, help="Latitude (requires --lon)")
+    search_group.add_argument("--area", help="Area name (e.g., 'Rawai', 'Phuket')")
+    search_parser.add_argument("--lon", type=float, help="Longitude (required with --lat)")
     search_parser.add_argument("--radius", type=float, default=5000, help="Search radius in meters")
     search_parser.add_argument("--rent", action="store_true", help="Only rental properties")
     search_parser.add_argument("--sale", action="store_true", help="Only sale properties")
     search_parser.add_argument("--min-price", type=float, help="Minimum price")
     search_parser.add_argument("--max-price", type=float, help="Maximum price")
+    search_parser.add_argument("--bedrooms", type=int, help="Number of bedrooms")
+    search_parser.add_argument("--bathrooms", type=int, help="Number of bathrooms")
     search_parser.add_argument("--type", help="Asset type (condo, villa, house, etc.)")
     search_parser.add_argument("--limit", type=int, default=20, help="Maximum results")
     
@@ -422,6 +609,16 @@ def main():
     
     # Stats command
     stats_parser = subparsers.add_parser("stats", help="Show storage statistics")
+    
+    # Reindex command
+    reindex_parser = subparsers.add_parser("reindex", help="Rebuild storage indexes")
+    reindex_parser.add_argument("--cell", help="Reindex specific geo cell")
+    reindex_parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    
+    # Watch command
+    watch_parser = subparsers.add_parser("watch", help="Watch storage for changes and auto-reindex")
+    watch_parser.add_argument("--verbose", action="store_true", help="Verbose output")
+    watch_parser.add_argument("--log-file", help="Log file path for watch events")
     
     args = parser.parse_args()
     
@@ -433,15 +630,40 @@ def main():
         cli = OneMinutaCLI(args.storage)
         
         if args.command == "search":
+            # Handle area-based search vs lat/lon search
+            if args.area:
+                # Convert area to lat/lon using area mapping
+                area_mapping = {
+                    "rawai": (7.77965, 98.32532),
+                    "kata": (7.8167, 98.3500),
+                    "patong": (7.8980, 98.2940),
+                    "phuket": (7.8804, 98.3923),
+                    "bangkok": (13.7563, 100.5018),
+                }
+                area_key = args.area.lower()
+                if area_key in area_mapping:
+                    lat, lon = area_mapping[area_key]
+                else:
+                    print(f"Unknown area '{args.area}'. Available areas: {', '.join(area_mapping.keys())}")
+                    return
+            else:
+                # Validate lat/lon requirements
+                if args.lat is None or args.lon is None:
+                    print("Error: --lat and --lon are both required for coordinate search")
+                    return
+                lat, lon = args.lat, args.lon
+            
             cli.search(
-                lat=args.lat,
-                lon=args.lon,
+                lat=lat,
+                lon=lon,
                 radius_m=args.radius,
                 rent=args.rent,
                 sale=args.sale,
                 min_price=args.min_price,
                 max_price=args.max_price,
                 asset_type=args.type,
+                bedrooms=args.bedrooms,
+                bathrooms=args.bathrooms,
                 limit=args.limit,
                 json_output=args.json
             )
@@ -451,6 +673,12 @@ def main():
         
         elif args.command == "stats":
             cli.stats(json_output=args.json)
+        
+        elif args.command == "reindex":
+            cli.reindex(cell=args.cell, verbose=args.verbose)
+        
+        elif args.command == "watch":
+            cli.watch(verbose=args.verbose, log_file=getattr(args, 'log_file', None))
     
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

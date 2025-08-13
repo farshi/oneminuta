@@ -1,0 +1,5 @@
+#!/bin/bash
+# OneMinuta CLI wrapper script
+
+cd "$(dirname "$0")"
+python oneminuta_cli.py "$@"

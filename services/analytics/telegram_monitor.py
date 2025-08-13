@@ -333,6 +333,70 @@ class TelegramPropertyMonitor:
             self.logger.error(f"Error getting channel history: {e}")
             return []
     
+    async def get_channel_all_messages(self, channel: str, limit: int = 100, days_back: int = None):
+        """Get ALL messages from a channel (including owner/listing messages) for property collection"""
+        if TelegramClient is None:
+            self.logger.error("Telethon not installed")
+            return []
+        
+        if not self.client:
+            # Use persistent session from sessions folder
+            session_path = Path('sessions') / 'oneminuta_prod'
+            if not session_path.parent.exists():
+                session_path.parent.mkdir(exist_ok=True)
+            session_name = str(session_path)
+            self.client = TelegramClient(session_name, self.api_id, self.api_hash)
+            
+            # Start without prompting for auth - use existing session
+            try:
+                await self.client.connect()
+                if not await self.client.is_user_authorized():
+                    self.logger.error("Not authorized! Run: ./telegram_analytics auth")
+                    return []
+            except Exception as e:
+                self.logger.error(f"Session error: {e}. Run: ./telegram_analytics auth")
+                return []
+        
+        try:
+            entity = await self.client.get_entity(channel)
+            messages = []
+            
+            # Calculate cutoff date if days_back is specified
+            cutoff_date = None
+            if days_back:
+                cutoff_date = datetime.utcnow() - timedelta(days=days_back)
+                self.logger.info(f"Collecting ALL messages from last {days_back} days (since {cutoff_date.strftime('%Y-%m-%d')})")
+            
+            message_count = 0
+            async for message in self.client.iter_messages(entity, limit=limit):
+                if message.text and message.sender:
+                    # Check if message is within date range
+                    if cutoff_date and message.date and message.date.replace(tzinfo=None) < cutoff_date:
+                        self.logger.info(f"Reached cutoff date, stopping at {message.date.strftime('%Y-%m-%d %H:%M')}")
+                        break
+                    
+                    # Include ALL messages (no filtering for property collection)
+                    messages.append({
+                        'user_id': str(message.sender.id),
+                        'handle': f"@{message.sender.username}" if message.sender.username else None,
+                        'text': message.text,
+                        'date': message.date,
+                        'message_id': message.id,
+                        'is_owner': self.is_likely_owner_message(message.text)  # Tag but don't filter
+                    })
+                    message_count += 1
+            
+            if cutoff_date:
+                self.logger.info(f"Collected {message_count} total messages from last {days_back} days (no filtering)")
+            else:
+                self.logger.info(f"Collected {message_count} total messages (no filtering)")
+            
+            return messages
+        
+        except Exception as e:
+            self.logger.error(f"Error getting all channel messages for {channel}: {e}")
+            return []
+    
     async def analyze_channel_history(self, channel: str, limit: int = 1000, days_back: int = None):
         """Analyze historical messages from a channel"""
         if days_back:

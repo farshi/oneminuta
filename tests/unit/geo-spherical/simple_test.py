@@ -5,7 +5,9 @@ Simple test script for spherical coordinate library
 
 import sys
 import os
-sys.path.insert(0, os.path.dirname(__file__))
+# Add geo-spherical libs to path
+project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+sys.path.insert(0, os.path.join(project_root, 'libs', 'geo-spherical'))
 
 from spherical import (
     lat_lon_to_unit, unit_to_lat_lon, surface_distance,
