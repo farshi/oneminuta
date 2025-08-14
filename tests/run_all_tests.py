@@ -64,7 +64,7 @@ def main():
             chatbot_tests = [
                 ("Structure Test", tests_dir / "chatbot" / "test_chatbot_structure.py"),
                 ("Mock Test", tests_dir / "chatbot" / "test_chatbot_mock.py"),
-                # ("NLP Extraction", tests_dir / "chatbot" / "run_nlp_tests.py"),  # Temporarily disabled due to OpenAI import issues
+                ("NLP Extraction", tests_dir / "chatbot" / "run_nlp_tests.py"),
             ]
             
             if args.category == "all":
