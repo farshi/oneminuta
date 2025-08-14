@@ -15,8 +15,17 @@ class BaseChatbotStage(ABC):
     
     def __init__(self, openai_api_key: str):
         self.openai_api_key = openai_api_key
-        self.client = openai.OpenAI(api_key=openai_api_key)
         self.logger = logging.getLogger(self.__class__.__name__)
+        
+        # Only initialize OpenAI client if not a mock key
+        if openai_api_key and openai_api_key != "mock_key":
+            try:
+                self.client = openai.OpenAI(api_key=openai_api_key)
+            except Exception as e:
+                self.logger.warning(f"Failed to initialize OpenAI client: {e}")
+                self.client = None
+        else:
+            self.client = None
     
     @abstractmethod
     async def process(self, user_id: str, message: str, session: Dict, context: Dict = None) -> Dict:
@@ -46,6 +55,10 @@ class BaseChatbotStage(ABC):
     
     async def _call_openai(self, messages: list, model: str = None, temperature: float = 0.7, max_tokens: int = 500) -> Optional[str]:
         """Call OpenAI API with error handling"""
+        if self.client is None:
+            self.logger.warning("OpenAI client not available (mock mode or initialization failed)")
+            return None
+            
         try:
             # Use model from env if not specified
             import os

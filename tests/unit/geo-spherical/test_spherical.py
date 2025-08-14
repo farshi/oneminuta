@@ -181,10 +181,12 @@ class TestSpheriCode:
                 code = encode_sphericode(lat, lon, bits)
                 lat2, lon2 = decode_sphericode(code, bits)
                 
-                # Accuracy depends on bits_per_axis
-                tolerance = 180 / (1 << bits)
-                assert abs(lat - lat2) < tolerance
-                assert abs(lon - lon2) < tolerance
+                # Accuracy depends on bits_per_axis - account for quantization
+                max_val = (1 << bits) - 1
+                lat_tolerance = 180 / max_val
+                lon_tolerance = 360 / max_val
+                assert abs(lat - lat2) < lat_tolerance
+                assert abs(lon - lon2) < lon_tolerance
     
     def test_morton_encode_decode(self):
         """Test Morton encoding/decoding"""

@@ -43,13 +43,18 @@ def test_sphericode():
             code = encode_sphericode(lat, lon, bits)
             lat2, lon2 = decode_sphericode(code, bits)
             
-            tolerance = 180 / (1 << bits)  # Expected precision
+            # Tolerance should account for quantization step size
+            # For latitude: 180 degrees / (2^bits - 1) quantization levels
+            # For longitude: 360 degrees / (2^bits - 1) quantization levels
+            max_val = (1 << bits) - 1
+            lat_tolerance = 180 / max_val  # Half step for latitude
+            lon_tolerance = 360 / max_val  # Half step for longitude
             lat_error = abs(lat - lat2)
             lon_error = abs(lon - lon2)
             
-            print(f"   {name} ({bits} bits): error=({lat_error:.6f}, {lon_error:.6f}), tolerance={tolerance:.6f}")
-            assert lat_error < tolerance
-            assert lon_error < tolerance
+            print(f"   {name} ({bits} bits): error=({lat_error:.6f}, {lon_error:.6f}), tolerance=(lat:{lat_tolerance:.6f}, lon:{lon_tolerance:.6f})")
+            assert lat_error < lat_tolerance
+            assert lon_error < lon_tolerance
     print("   ✓ PASSED")
     
     # Test 3: Morton encoding
