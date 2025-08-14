@@ -939,8 +939,74 @@ class OneMinutaCLI:
         
         if cell:
             print(f"Reindexing specific cell: {cell}")
-            # TODO: Implement specific cell reindexing
-            results["errors"].append("Specific cell reindexing not implemented yet")
+            # Implement specific cell reindexing by searching for assets in that SpheriCode prefix
+            try:
+                # Parse cell as SpheriCode prefix
+                cell_prefix = cell.upper()
+                reindexed_count = 0
+                
+                # Find all assets that match this cell prefix
+                for user_dir in (storage_path / "users").iterdir():
+                    if not user_dir.is_dir():
+                        continue
+                    
+                    username = user_dir.name
+                    assets_dir = user_dir / "assets"
+                    
+                    if not assets_dir.exists():
+                        continue
+                    
+                    # Check available properties that should be in this cell
+                    property_dir = assets_dir / "property" / "available"
+                    if property_dir.exists():
+                        for asset_dir in property_dir.iterdir():
+                            if not asset_dir.is_dir():
+                                continue
+                            
+                            for trans_dir in asset_dir.iterdir():
+                                if not trans_dir.is_dir():
+                                    continue
+                                
+                                meta_file = trans_dir / "meta.json"
+                                if meta_file.exists():
+                                    try:
+                                        import json
+                                        with open(meta_file, 'r') as f:
+                                            meta = json.load(f)
+                                        
+                                        location = meta.get("location")
+                                        if location and "lat" in location and "lon" in location:
+                                            lat, lon = location["lat"], location["lon"]
+                                            asset_cell = encode_sphericode(lat, lon, 16)
+                                            
+                                            # Check if this asset belongs to the specified cell
+                                            if asset_cell.startswith(cell_prefix):
+                                                # Reindex this asset
+                                                asset_id = asset_dir.name
+                                                transaction_type = trans_dir.name
+                                                
+                                                # Remove existing symlinks
+                                                self.asset_manager.storage._remove_indexed_symlinks(
+                                                    username, asset_id, "property", transaction_type
+                                                )
+                                                
+                                                # Load asset data and recreate symlinks
+                                                asset_data = self.asset_manager.storage._load_asset_data(trans_dir)
+                                                if asset_data:
+                                                    self.asset_manager.storage._create_indexed_symlink(
+                                                        username, asset_id, "property", 
+                                                        transaction_type, trans_dir, asset_data
+                                                    )
+                                                    reindexed_count += 1
+                                    
+                                    except (json.JSONDecodeError, KeyError) as e:
+                                        results["errors"].append(f"Error processing {meta_file}: {e}")
+                
+                results["reindexed_assets"] = reindexed_count
+                print(f"Reindexed {reindexed_count} assets in cell {cell}")
+                
+            except Exception as e:
+                results["errors"].append(f"Cell reindexing failed: {e}")
         else:
             # Full reindex
             print("Performing full reindex...")

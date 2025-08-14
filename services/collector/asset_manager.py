@@ -737,10 +737,95 @@ class AssetManager:
             # Move session files and analytics to sys
             self.storage.move_sessions_to_sys()
             
-            # TODO: Migrate property assets from old structure
-            # This would involve reading from _storage/users/ and converting to new format
+            # Migrate property assets from old structure
+            self._migrate_property_assets_from_old_structure(old_storage)
             
             self.logger.info("Migration from old storage completed")
             
         except Exception as e:
             self.logger.error(f"Failed to migrate from old storage: {e}")
+    
+    def _migrate_property_assets_from_old_structure(self, old_storage_path):
+        """Migrate property assets from old flat structure to new hierarchical structure"""
+        try:
+            old_users_path = old_storage_path / "users"
+            if not old_users_path.exists():
+                self.logger.info("No old users directory found for migration")
+                return
+            
+            migrated_count = 0
+            
+            for old_user_dir in old_users_path.iterdir():
+                if not old_user_dir.is_dir():
+                    continue
+                
+                username = old_user_dir.name
+                self.logger.info(f"Migrating assets for user {username}")
+                
+                # Look for old format asset files (e.g., asset_id_meta.json, asset_id_state.json)
+                asset_files = {}
+                
+                for file_path in old_user_dir.iterdir():
+                    if file_path.is_file() and file_path.name.endswith('.json'):
+                        # Parse old format: asset_id_type.json
+                        parts = file_path.name.replace('.json', '').split('_')
+                        if len(parts) >= 2:
+                            # Extract asset_id (everything except the last part which is the type)
+                            asset_id = '_'.join(parts[:-1])
+                            file_type = parts[-1]  # meta, state, telegram
+                            
+                            if asset_id not in asset_files:
+                                asset_files[asset_id] = {}
+                            asset_files[asset_id][file_type] = file_path
+                
+                # Process each asset
+                for asset_id, files in asset_files.items():
+                    if 'meta' not in files or 'state' not in files:
+                        continue  # Skip incomplete assets
+                    
+                    try:
+                        # Load old format data
+                        with open(files['meta'], 'r') as f:
+                            meta_data = json.load(f)
+                        
+                        with open(files['state'], 'r') as f:
+                            state_data = json.load(f)
+                        
+                        telegram_data = {}
+                        if 'telegram' in files:
+                            with open(files['telegram'], 'r') as f:
+                                telegram_data = json.load(f)
+                        
+                        # Convert to new format
+                        asset_type = "property"  # Currently only supporting properties
+                        transaction_type = "sell" if state_data.get("for_rent_or_sale", "sale") == "sale" else "rent"
+                        
+                        # Create new asset data structure
+                        asset_data = {
+                            "meta": meta_data,
+                            "state": state_data,
+                            "description": telegram_data.get("message_text", "Migrated property"),
+                            "telegram_metadata": telegram_data
+                        }
+                        
+                        # Store using new storage system
+                        success = self.storage.store_asset(
+                            username=username.replace("tg_", "").replace("_property", ""),  # Clean up username
+                            asset_id=asset_id,
+                            asset_type=asset_type,
+                            transaction_type=transaction_type,
+                            asset_data=asset_data
+                        )
+                        
+                        if success:
+                            migrated_count += 1
+                            self.logger.debug(f"Migrated asset {asset_id} for user {username}")
+                    
+                    except Exception as e:
+                        self.logger.error(f"Failed to migrate asset {asset_id} for user {username}: {e}")
+                        continue
+            
+            self.logger.info(f"Successfully migrated {migrated_count} assets from old storage structure")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to migrate assets from old structure: {e}")

@@ -182,6 +182,38 @@ class StorageManager:
         chars = list(prefix.lower())
         return "/".join(chars)
     
+    def _get_country_from_coordinates(self, lat: float, lon: float) -> str:
+        """Get country code based on coordinates"""
+        try:
+            # Simple geographic bounds check for common countries
+            # Thailand bounds (approximate)
+            if 5.0 <= lat <= 21.0 and 97.0 <= lon <= 106.0:
+                return "TH"
+            
+            # Malaysia bounds (approximate) 
+            elif 1.0 <= lat <= 7.5 and 99.0 <= lon <= 120.0:
+                return "MY"
+            
+            # Philippines bounds (approximate)
+            elif 4.0 <= lat <= 21.0 and 116.0 <= lon <= 127.0:
+                return "PH"
+            
+            # Vietnam bounds (approximate)
+            elif 8.0 <= lat <= 24.0 and 102.0 <= lon <= 110.0:
+                return "VN"
+            
+            # Singapore bounds (approximate)
+            elif 1.0 <= lat <= 1.5 and 103.0 <= lon <= 104.0:
+                return "SG"
+            
+            # Default to Thailand since that's our primary market
+            else:
+                return "TH"
+                
+        except (TypeError, ValueError):
+            # If coordinates are invalid, default to Thailand
+            return "TH"
+    
     def archive_asset(self, username: str, asset_id: str, asset_type: str, 
                      transaction_type: str) -> bool:
         """Move asset from available to archived and remove from indexing"""
@@ -335,7 +367,8 @@ class StorageManager:
             
             for prefix in prefixes:
                 nested_path = self._create_nested_path(prefix)
-                country = "TH"  # TODO: Make dynamic
+                # Determine country dynamically based on location (default to TH for Thailand)
+                country = self._get_country_from_coordinates(center_lat, center_lon)
                 
                 # Search in indexed structure
                 base_path = self.indexed_path / country / "spheri" / nested_path
