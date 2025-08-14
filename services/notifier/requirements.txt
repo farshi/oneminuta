@@ -1,7 +1,0 @@
-# Notifier service dependencies
-aiogram>=3.0.0
-aiofiles>=23.0.0
-ujson>=5.0.0
-python-dotenv>=1.0.0
-loguru>=0.7.0
-apscheduler>=3.10.0  # For scheduled tasks

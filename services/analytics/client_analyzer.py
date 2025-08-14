@@ -12,7 +12,7 @@ from pathlib import Path
 import asyncio
 from enum import Enum
 
-from specs.schemas.models import AssetType, RentOrSale, Location
+from services.core.models import AssetType, RentOrSale, Location
 
 
 class ClientHotness(str, Enum):

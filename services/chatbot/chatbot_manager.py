@@ -177,6 +177,38 @@ class OneMinutaChatbotManager:
             self.logger.error(f"Error getting conversation summary for {user_id}: {e}")
             return None
     
+    async def generate_welcome_message(self, user_id: str, context: str) -> Optional[str]:
+        """Generate personalized welcome message using AI"""
+        try:
+            # Use the profile detection stage to generate welcome message
+            profile_stage = self.stages['user-profile-detection']
+            
+            messages = [
+                {
+                    "role": "system", 
+                    "content": """You are OneMinuta, a friendly Thai property search assistant. 
+                    Generate a warm, professional welcome message based on the context provided.
+                    Keep it brief (max 3 sentences), personalized, and end with an engaging question about their property needs.
+                    Be conversational and helpful."""
+                },
+                {
+                    "role": "user",
+                    "content": context
+                }
+            ]
+            
+            response = await profile_stage._call_openai(
+                messages=messages,
+                temperature=0.8,
+                max_tokens=200
+            )
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"Error generating welcome message: {e}")
+            return None
+    
     def _calculate_data_completeness(self, collected_data: Dict) -> Dict:
         """Calculate how much required data has been collected"""
         required_fields = {

@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'libs', '
 from sphericode import encode_sphericode, prefixes_for_query
 from spherical import inside_cap
 
-from specs.schemas.models import (
+from services.core.models import (
     AssetType,
     RentOrSale,
     Location,

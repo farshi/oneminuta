@@ -6,7 +6,7 @@ Automated quality gates to ensure code quality and prevent broken commits/pushes
 
 ```bash
 # Install hooks
-./install-hooks.sh
+./scripts/install-hooks.sh
 
 # Test hooks work
 git commit -m "test commit" --allow-empty
@@ -53,7 +53,7 @@ Runs **before** every `git push` with different rules based on branch:
 
 ### Automatic Installation
 ```bash
-./install-hooks.sh
+./scripts/install-hooks.sh
 ```
 
 ### Manual Installation
@@ -139,7 +139,7 @@ echo "Running custom validation..."
 
 Then reinstall:
 ```bash
-./install-hooks.sh
+./scripts/install-hooks.sh
 ```
 
 ## Hook Features
@@ -178,7 +178,7 @@ ls -la .git/hooks/pre-commit
 ls -la .git/hooks/pre-push
 
 # Reinstall if needed
-./install-hooks.sh
+./scripts/install-hooks.sh
 ```
 
 ### Tests Failing in Hook but Not Locally
@@ -246,7 +246,7 @@ jobs:
 vim .githooks/pre-commit
 
 # Reinstall to apply changes
-./install-hooks.sh
+./scripts/install-hooks.sh
 ```
 
 ### Adding New Tests
@@ -262,5 +262,5 @@ vim .githooks/pre-commit
 1. **Never bypass hooks on main branch**
 2. **Fix failing tests, don't bypass**
 3. **Update hooks when adding new features**
-4. **Run `./install-hooks.sh` after pulling hook changes**
+4. **Run `./scripts/install-hooks.sh` after pulling hook changes**
 5. **Report hook issues to team**

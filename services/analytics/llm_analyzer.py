@@ -17,7 +17,7 @@ try:
 except ImportError:
     openai = None
 
-from specs.schemas.models import AssetType, RentOrSale
+from services.core.models import AssetType, RentOrSale
 
 
 @dataclass

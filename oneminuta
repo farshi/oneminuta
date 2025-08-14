@@ -1,5 +1,5 @@
 #!/bin/bash
-# OneMinuta CLI wrapper script
+# OneMinuta CLI wrapper script - Use this for global access
 
 cd "$(dirname "$0")"
-python oneminuta_cli.py "$@"
+python3 oneminuta_cli.py "$@"

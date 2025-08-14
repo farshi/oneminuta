@@ -18,7 +18,7 @@ def test_search_performance():
     print("Testing OneMinuta Search Performance")
     print("=" * 50)
     
-    cli = OneMinutaCLI("./test_storage")
+    cli = OneMinutaCLI("./tests/fixtures")
     
     # Test scenarios
     test_cases = [
@@ -111,7 +111,7 @@ def test_scaling_properties():
     print("SCALING TEST")
     print("=" * 50)
     
-    cli = OneMinutaCLI("./test_storage")
+    cli = OneMinutaCLI("./tests/fixtures")
     
     # Get stats first
     stats = cli.stats(json_output=True)
@@ -154,11 +154,11 @@ def test_memory_usage():
     print("MEMORY USAGE ESTIMATION")
     print("=" * 50)
     
-    cli = OneMinutaCLI("./test_storage")
+    cli = OneMinutaCLI("./tests/fixtures")
     stats = cli.stats(json_output=True)
     
     # Estimate file sizes
-    storage_path = Path("./test_storage")
+    storage_path = Path("./tests/fixtures")
     
     total_size = 0
     file_counts = {}

@@ -9,7 +9,7 @@ from typing import List, Optional, Tuple
 from datetime import datetime
 from dataclasses import dataclass
 
-from specs.schemas.models import AssetType, RentOrSale
+from services.core.models import AssetType, RentOrSale
 
 
 @dataclass
