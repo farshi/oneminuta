@@ -1,0 +1,40 @@
+{
+  "user_id": "1474262985",
+  "handle": null,
+  "total_score": 10.875,
+  "hotness_level": "cold",
+  "signals": [
+    {
+      "user_id": "1474262985",
+      "signal_type": "message",
+      "content": "Когда рендеры оживают!⬆️\n\nКак вам?😍",
+      "timestamp": "2025-07-30 08:52:22+00:00",
+      "channel": "@sabay_property",
+      "message_id": 2568,
+      "confidence": 1.0,
+      "extracted_data": null
+    },
+    {
+      "user_id": "1474262985",
+      "signal_type": "question",
+      "content": "Когда рендеры оживают!⬆️\n\nКак вам?😍",
+      "timestamp": "2025-07-30 08:52:22+00:00",
+      "channel": "@sabay_property",
+      "message_id": 2568,
+      "confidence": 0.8,
+      "extracted_data": null
+    }
+  ],
+  "first_seen": "2025-08-12 11:00:11.354649",
+  "last_active": "2025-07-30 08:52:22+00:00",
+  "budget_range": null,
+  "preferred_locations": "set()",
+  "asset_preferences": "set()",
+  "rent_or_sale": null,
+  "message_frequency": 0.0,
+  "question_ratio": 0.0,
+  "urgency_indicators": 0,
+  "response_speed": 0.0,
+  "engagement_depth": 0.0,
+  "property_specific": 0.0
+}

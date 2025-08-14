@@ -1,0 +1,27 @@
+{
+  "user_id": "tg_partner_sabay",
+  "username": "sabay",
+  "partner_id": "partner_sabay",
+  "type": "telegram_partner",
+  "created_at": "2025-08-14T19:25:44.666867",
+  "display_name": "Sabay Property Group",
+  "channels": [
+    "@sabay_property"
+  ],
+  "contact": "@sabay_agent",
+  "commission_rate": 0.025,
+  "source": "telegram_collector",
+  "active": true,
+  "permissions": [
+    "create_listings",
+    "edit_listings",
+    "delete_listings",
+    "manage_channels"
+  ],
+  "bio": "Premium property solutions across Thailand",
+  "languages": [
+    "en",
+    "ru",
+    "th"
+  ]
+}

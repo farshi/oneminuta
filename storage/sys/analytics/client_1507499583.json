@@ -1,0 +1,119 @@
+{
+  "user_id": "1507499583",
+  "handle": null,
+  "total_score": 33.375,
+  "hotness_level": "warm",
+  "signals": [
+    {
+      "user_id": "1507499583",
+      "signal_type": "message",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 1.0,
+      "extracted_data": null
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "urgent_signal",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 0.9,
+      "extracted_data": null
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "budget_mention",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 0.85,
+      "extracted_data": {
+        "amount": 17000.0,
+        "currency": "THB",
+        "raw_text": "до 17"
+      }
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "location_preference",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 0.7,
+      "extracted_data": {
+        "locations": [
+          "phuket"
+        ]
+      }
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "message",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 1.0,
+      "extracted_data": null
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "urgent_signal",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 0.9,
+      "extracted_data": null
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "budget_mention",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 0.85,
+      "extracted_data": {
+        "amount": 17000.0,
+        "currency": "THB",
+        "raw_text": "до 17"
+      }
+    },
+    {
+      "user_id": "1507499583",
+      "signal_type": "location_preference",
+      "content": "Горящие билеты на Йона-бичклаб со скидкой 50%\n\nМожем продать тому, кто сможет появиться на Пирсе Марина до 17:00 сегодня. За подробностями к @phuketgidyaht",
+      "timestamp": "2025-08-07 08:35:52+00:00",
+      "channel": "@phuketgid",
+      "message_id": 2014,
+      "confidence": 0.7,
+      "extracted_data": {
+        "locations": [
+          "phuket"
+        ]
+      }
+    }
+  ],
+  "first_seen": "2025-08-12 10:58:38.797695",
+  "last_active": "2025-08-07 08:35:52+00:00",
+  "budget_range": [
+    17000.0,
+    17000.0
+  ],
+  "preferred_locations": "{'phuket'}",
+  "asset_preferences": "set()",
+  "rent_or_sale": null,
+  "message_frequency": 0.0,
+  "question_ratio": 0.0,
+  "urgency_indicators": 0,
+  "response_speed": 0.0,
+  "engagement_depth": 0.0,
+  "property_specific": 0.0
+}

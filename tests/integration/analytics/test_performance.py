@@ -1,57 +1,47 @@
 #!/usr/bin/env python3
 """
-Performance tests for OneMinuta CLI
+Performance tests for OneMinuta storage system
 """
 
 import time
 import sys
 from pathlib import Path
 
-# Add current directory to path
-sys.path.insert(0, str(Path(__file__).parent))
+# Add project root to path  
+project_root = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(project_root))
 
-from oneminuta_cli import OneMinutaCLI
+# Now we can import from tests
+sys.path.insert(0, str(project_root / "tests"))
+from test_helpers import TestStorageHelper, TestFixtureManager, skip_if_no_fixtures
 
 
+@skip_if_no_fixtures()
 def test_search_performance():
     """Test search performance with various queries"""
     print("Testing OneMinuta Search Performance")
     print("=" * 50)
     
-    cli = OneMinutaCLI("./tests/fixtures")
+    helper = TestStorageHelper()
+    test_cases = TestFixtureManager.get_search_scenarios()
     
-    # Test scenarios
-    test_cases = [
-        {
-            "name": "Small radius (1km) - Rawai center",
-            "lat": 7.77965, "lon": 98.32532, "radius": 1000
-        },
-        {
-            "name": "Medium radius (5km) - Rawai center", 
-            "lat": 7.77965, "lon": 98.32532, "radius": 5000
-        },
-        {
-            "name": "Large radius (15km) - Rawai center",
-            "lat": 7.77965, "lon": 98.32532, "radius": 15000
-        },
-        {
-            "name": "Small radius (2km) - Kata center",
-            "lat": 7.8167, "lon": 98.3500, "radius": 2000
-        },
-        {
-            "name": "Medium radius (10km) - Patong center",
-            "lat": 7.8804, "lon": 98.3923, "radius": 10000
-        },
+    # Add additional test cases with filters
+    locations = TestFixtureManager.get_sample_locations()
+    additional_cases = [
         {
             "name": "With filters - Rent only, max 30k",
-            "lat": 7.77965, "lon": 98.32532, "radius": 10000,
-            "rent": True, "max_price": 30000
+            "lat": locations['rawai']['lat'],
+            "lon": locations['rawai']['lon'], 
+            "radius_m": 10000,
+            "filters": {"transaction_type": "rent", "max_price": 30000}
         }
     ]
     
+    all_test_cases = test_cases + additional_cases
+    
     total_time = 0
     
-    for i, test_case in enumerate(test_cases, 1):
+    for i, test_case in enumerate(all_test_cases, 1):
         print(f"\n{i}. {test_case['name']}")
         
         # Run the search multiple times for better average
@@ -59,16 +49,13 @@ def test_search_performance():
         for run in range(5):
             start = time.time()
             
-            results = cli.search(
+            # Use new search system
+            filters = test_case.get("filters", {})
+            results = helper.search_test_properties(
                 lat=test_case["lat"],
-                lon=test_case["lon"], 
-                radius_m=test_case.get("radius", 5000),
-                rent=test_case.get("rent"),
-                sale=test_case.get("sale"),
-                min_price=test_case.get("min_price"),
-                max_price=test_case.get("max_price"),
-                asset_type=test_case.get("asset_type"),
-                json_output=True
+                lon=test_case["lon"],
+                radius_m=test_case.get("radius_m", test_case.get("radius", 5000)),
+                **filters
             )
             
             elapsed = time.time() - start
@@ -79,24 +66,27 @@ def test_search_performance():
         max_time = max(times)
         total_time += avg_time
         
-        query_info = results["query"]
-        result_count = len(results["results"])
+        result_count = len(results)
         
         print(f"   Results: {result_count} properties")
         print(f"   Performance: {avg_time:.1f}ms avg ({min_time:.1f}-{max_time:.1f}ms)")
-        print(f"   Prefixes: {query_info['prefixes_generated']}")
-        print(f"   Cells found: {query_info['cells_found']}")
-        print(f"   Properties loaded: {query_info['properties_loaded']}")
+        
+        # Check if we met expected minimums
+        expected_min = test_case.get("expected_min", 0)
+        if result_count >= expected_min:
+            print(f"   ✅ Expected >= {expected_min}, got {result_count}")
+        else:
+            print(f"   ⚠️  Expected >= {expected_min}, got {result_count}")
     
     print(f"\n{'='*50}")
     print(f"PERFORMANCE SUMMARY:")
     print(f"Total test time: {total_time:.1f}ms")
-    print(f"Average per search: {total_time/len(test_cases):.1f}ms")
-    print(f"Tests passed: {len(test_cases)}")
+    print(f"Average per search: {total_time/len(all_test_cases):.1f}ms")
+    print(f"Tests passed: {len(all_test_cases)}")
     
-    # Performance targets from PLANNING.md
+    # Performance targets
     print(f"\nTARGET ANALYSIS:")
-    avg_per_search = total_time / len(test_cases)
+    avg_per_search = total_time / len(all_test_cases)
     if avg_per_search < 100:
         print(f"✅ EXCELLENT: {avg_per_search:.1f}ms < 100ms target")
     elif avg_per_search < 200:
@@ -105,20 +95,26 @@ def test_search_performance():
         print(f"⚠️  SLOW: {avg_per_search:.1f}ms > 200ms")
 
 
+@skip_if_no_fixtures()
 def test_scaling_properties():
     """Test how performance scales with more properties"""
     print(f"\n{'='*50}")
     print("SCALING TEST")
     print("=" * 50)
     
-    cli = OneMinutaCLI("./tests/fixtures")
+    helper = TestStorageHelper()
     
     # Get stats first
-    stats = cli.stats(json_output=True)
-    print(f"Current dataset: {stats['total_properties']} properties")
+    stats = helper.get_test_stats()
+    print(f"Current dataset: {stats['total_assets']} assets")
+    print(f"Available assets: {stats['available_assets']}")
+    print(f"Users: {stats['users']}")
     
     # Test same query multiple times to see consistency
-    lat, lon = 7.77965, 98.32532  # Rawai center
+    locations = TestFixtureManager.get_sample_locations()
+    rawai = locations['rawai']
+    
+    lat, lon = rawai['lat'], rawai['lon']
     radius = 10000  # 10km
     
     print(f"\nRunning 20 identical searches (lat={lat}, lon={lon}, radius={radius}m):")
@@ -126,12 +122,12 @@ def test_scaling_properties():
     times = []
     for i in range(20):
         start = time.time()
-        results = cli.search(lat=lat, lon=lon, radius_m=radius, json_output=True)
+        results = helper.search_test_properties(lat=lat, lon=lon, radius_m=radius)
         elapsed = time.time() - start
         times.append(elapsed * 1000)
         
         if i == 0:
-            result_count = len(results["results"])
+            result_count = len(results)
             print(f"Results per query: {result_count}")
     
     print(f"\nTiming results (ms):")
@@ -148,17 +144,18 @@ def test_scaling_properties():
         print(f"⚠️  VARIABLE: {variance:.1f}ms variance")
 
 
+@skip_if_no_fixtures()
 def test_memory_usage():
     """Basic memory usage estimation"""
     print(f"\n{'='*50}")
     print("MEMORY USAGE ESTIMATION")
     print("=" * 50)
     
-    cli = OneMinutaCLI("./tests/fixtures")
-    stats = cli.stats(json_output=True)
+    helper = TestStorageHelper()
+    stats = helper.get_test_stats()
     
     # Estimate file sizes
-    storage_path = Path("./tests/fixtures")
+    storage_path = helper.fixtures_path
     
     total_size = 0
     file_counts = {}
@@ -172,8 +169,11 @@ def test_memory_usage():
             file_counts[suffix] = file_counts.get(suffix, 0) + 1
     
     print(f"Total storage size: {total_size:,} bytes ({total_size/1024:.1f} KB)")
-    print(f"Properties: {stats['total_properties']}")
-    print(f"Bytes per property: {total_size/stats['total_properties']:.0f}")
+    print(f"Total assets: {stats['total_assets']}")
+    print(f"Available assets: {stats['available_assets']}")
+    
+    if stats['total_assets'] > 0:
+        print(f"Bytes per asset: {total_size/stats['total_assets']:.0f}")
     
     print(f"\nFile type distribution:")
     for suffix, count in sorted(file_counts.items()):
@@ -181,10 +181,17 @@ def test_memory_usage():
     
     # Estimate scaling
     print(f"\nScaling estimates:")
-    bytes_per_prop = total_size / stats['total_properties']
-    for prop_count in [100, 1000, 10000]:
-        estimated_size = prop_count * bytes_per_prop
-        print(f"  {prop_count:,} properties: ~{estimated_size/1024/1024:.1f} MB")
+    if stats['total_assets'] > 0:
+        bytes_per_asset = total_size / stats['total_assets']
+        for asset_count in [100, 1000, 10000]:
+            estimated_size = asset_count * bytes_per_asset
+            print(f"  {asset_count:,} assets: ~{estimated_size/1024/1024:.1f} MB")
+    
+    # Show storage structure stats
+    print(f"\nStorage structure:")
+    print(f"  Users: {stats['users']}")
+    print(f"  Indexed symlinks: {stats['indexed_symlinks']}")
+    print(f"  By asset type: {stats['by_asset_type']}")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,26 @@
+{
+  "user_id": "tg_partner_phuketgid",
+  "partner_id": "partner_phuketgid",
+  "type": "telegram_partner",
+  "created_at": "2025-08-14T19:19:27.134587",
+  "display_name": "Phuket Property Expert",
+  "channels": [
+    "@phuketgidsell",
+    "@phuketgid"
+  ],
+  "contact": "@phuket_agent",
+  "commission_rate": 0.03,
+  "source": "telegram_collector",
+  "active": true,
+  "permissions": [
+    "create_listings",
+    "edit_listings",
+    "delete_listings",
+    "manage_channels"
+  ],
+  "bio": "Phuket property expert with 10+ years experience",
+  "languages": [
+    "en",
+    "th"
+  ]
+}

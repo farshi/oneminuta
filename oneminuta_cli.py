@@ -26,6 +26,7 @@ from sphericode import encode_sphericode, prefixes_for_query
 # Import analytics and Telegram components
 from services.analytics.channel_analytics import ChannelAnalytics, GrowthPeriod
 from services.analytics.client_analyzer import PropertyClientAnalyzer
+from services.collector.asset_manager import AssetManager
 
 
 class OneMinutaCLI:
@@ -39,6 +40,7 @@ class OneMinutaCLI:
         # Initialize analytics components
         self.analytics = ChannelAnalytics(storage_path)
         self.client_analyzer = PropertyClientAnalyzer(storage_path)
+        self.asset_manager = AssetManager(storage_path)
     
     def search(self, lat: float, lon: float, radius_m: float = 5000,
                rent: bool = None, sale: bool = None, max_price: float = None,
@@ -363,13 +365,106 @@ class OneMinutaCLI:
             "by_user": by_user
         }
     
-    async def channel_analytics(self, channel_id: str = None, period: str = "weekly", 
-                                json_output: bool = False) -> Dict:
+    async def list_partners(self, json_output: bool = False) -> Dict:
+        """List all configured partners and their channels"""
+        try:
+            partners_data = {
+                "total_partners": len(self.asset_manager.partners),
+                "partners": [],
+                "generated_at": datetime.utcnow().isoformat()
+            }
+            
+            for partner_id, partner_info in self.asset_manager.partners.items():
+                partner_summary = {
+                    "partner_id": partner_id,
+                    "name": partner_info["name"],
+                    "channels": partner_info["channels"],
+                    "channel_count": len(partner_info["channels"]),
+                    "contact": partner_info["contact"],
+                    "commission_rate": partner_info["commission_rate"],
+                    "active": partner_info["active"],
+                    "languages": partner_info["languages"],
+                    "joined": partner_info["joined"]
+                }
+                partners_data["partners"].append(partner_summary)
+            
+            if json_output:
+                return partners_data
+            else:
+                self._print_partners_list(partners_data)
+                return partners_data
+                
+        except Exception as e:
+            print(f"Error listing partners: {e}")
+            return {}
+    
+    def _print_partners_list(self, data: Dict):
+        """Pretty print partners list"""
+        print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
+        print("🤝 ONEMINUTA PARTNER DIRECTORY")
+        print("="*60)
+        
+        print(f"\n📈 Summary")
+        print(f"  Total Partners: {data.get('total_partners', 0)}")
+        print(f"  Generated: {data.get('generated_at', 'N/A')[:19]}")
+        
+        partners = data.get("partners", [])
+        if partners:
+            print(f"\n📁 Partner Details")
+            print("-" * 80)
+            print(f"{'Name':<25} {'Channels':<8} {'Rate':<8} {'Contact':<15} {'Status':<10}")
+            print("-" * 80)
+            
+            for partner in partners:
+                name = partner.get('name', 'Unknown')[:24]
+                channels = partner.get('channel_count', 0)
+                rate = f"{partner.get('commission_rate', 0)*100:.1f}%"
+                contact = partner.get('contact', 'N/A')[:14]
+                status = "✅ Active" if partner.get('active') else "❌ Inactive"
+                
+                print(f"{name:<25} {channels:<8} {rate:<8} {contact:<15} {status:<10}")
+                
+                # Show channels for each partner
+                partner_channels = partner.get('channels', [])
+                if partner_channels:
+                    channels_str = ", ".join(partner_channels)
+                    print(f"  📢 Channels: {channels_str}")
+                    print()
+        
+        print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
+    
+    async def channel_analytics(self, channel_id: str = None, partner_id: str = None, 
+                                period: str = "weekly", json_output: bool = False) -> Dict:
         """
-        Display channel analytics with growth metrics
+        Display channel analytics with growth metrics - supports partner view
         
         Args:
             channel_id: Specific channel ID or 'all' for all channels
+            partner_id: Show analytics for specific partner's channels
             period: 'daily', 'weekly', or 'monthly'
             json_output: Return raw JSON data
         """
@@ -393,21 +488,45 @@ class OneMinutaCLI:
                     self._print_channel_analytics(report)
                     return report
             else:
-                # Get all channels from analytics directory
-                analytics_dir = self.storage_path / "analytics" / "channels"
-                channel_ids = []
+                # Get channels - either for specific partner or all channels
+                if partner_id:
+                    # Get channels for specific partner
+                    partner_channels = self.asset_manager.get_partner_channels(partner_id)
+                    if not partner_channels:
+                        print(f"No channels found for partner {partner_id}")
+                        return {}
+                    
+                    # Convert channel names to IDs (remove @ prefix, add - prefix for storage)
+                    channel_ids = []
+                    for channel in partner_channels:
+                        # This is a simplified conversion - in practice you'd need proper channel ID mapping
+                        if channel.startswith("@"):
+                            # Mock conversion for demo - in practice, use actual Telegram channel IDs
+                            mock_id = f"-100{hash(channel) % 1000000000}"
+                            channel_ids.append(mock_id)
+                    
+                    # Generate partner-specific dashboard
+                    partner_data = self.asset_manager.partners.get(partner_id, {})
+                    dashboard = await self.analytics.get_partner_dashboard(
+                        channel_ids, partner_data.get("name", partner_id)
+                    )
                 
-                if analytics_dir.exists():
-                    for channel_dir in analytics_dir.iterdir():
-                        if channel_dir.is_dir() and channel_dir.name.startswith("-"):
-                            channel_ids.append(channel_dir.name)
-                
-                if not channel_ids:
-                    print("No channels found in analytics. Add bot to channels to start tracking.")
-                    return {}
-                
-                # Generate multi-channel dashboard
-                dashboard = await self.analytics.get_multi_channel_dashboard(channel_ids)
+                else:
+                    # Get all channels from analytics directory
+                    analytics_dir = self.storage_path / "analytics" / "channels"
+                    channel_ids = []
+                    
+                    if analytics_dir.exists():
+                        for channel_dir in analytics_dir.iterdir():
+                            if channel_dir.is_dir() and channel_dir.name.startswith("-"):
+                                channel_ids.append(channel_dir.name)
+                    
+                    if not channel_ids:
+                        print("No channels found in analytics. Add bot to channels to start tracking.")
+                        return {}
+                    
+                    # Generate multi-channel dashboard
+                    dashboard = await self.analytics.get_multi_channel_dashboard(channel_ids)
                 
                 if json_output:
                     return dashboard
@@ -417,6 +536,22 @@ class OneMinutaCLI:
                     
         except Exception as e:
             print(f"Error getting channel analytics: {e}")
+            return {}
+    
+    async def official_channel_analytics(self, json_output: bool = False) -> Dict:
+        """Display OneMinuta official channel analytics only"""
+        try:
+            # Get official channel dashboard
+            dashboard = await self.analytics.get_official_channel_dashboard()
+            
+            if json_output:
+                return dashboard
+            else:
+                self._print_multi_channel_dashboard(dashboard)
+                return dashboard
+                
+        except Exception as e:
+            print(f"Error getting official channel analytics: {e}")
             return {}
     
     async def hot_clients(self, min_score: float = 61.0, limit: int = 20, 
@@ -460,6 +595,18 @@ class OneMinutaCLI:
     def _print_channel_analytics(self, report: Dict):
         """Pretty print channel analytics"""
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
         print(f"📊 CHANNEL ANALYTICS - {report.get('channel_name', 'Unknown')}")
         print("="*60)
         
@@ -505,10 +652,34 @@ class OneMinutaCLI:
                 print(f"  • {rec}")
         
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
     
     def _print_multi_channel_dashboard(self, dashboard: Dict):
         """Pretty print multi-channel dashboard"""
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
         print("📊 MULTI-CHANNEL ANALYTICS DASHBOARD")
         print("="*60)
         
@@ -539,10 +710,34 @@ class OneMinutaCLI:
                 print(f"{name:<25} {members:<10,} {new_today:<8} {growth:<10} {status:<15}")
         
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
     
     def _print_hot_clients(self, clients):
         """Pretty print hot clients list"""
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
         print("🔥 HOT PROPERTY CLIENTS")
         print("="*60)
         
@@ -576,10 +771,34 @@ class OneMinutaCLI:
             print(f"{i:<6} {user_id:<15} {score:<8} {level_emoji} {level:<9} {budget:<15} {locations}")
         
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
     
     def _print_client_report(self, report: Dict):
         """Pretty print client analytics report"""
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
         print("📊 CLIENT ANALYTICS REPORT")
         print("="*60)
         
@@ -611,6 +830,18 @@ class OneMinutaCLI:
             print(f"  Max: ${budget.get('max', 0):,.0f}")
         
         print("\n" + "="*60)
+        
+        # Partner performance details
+        channel_performance = dashboard.get("channel_performance")
+        if channel_performance and dashboard.get("dashboard_type") == "partner":
+            print(f"\n📉 Detailed Channel Performance")
+            for channel_id, perf in channel_performance.items():
+                channel_name = next((ch['channel_name'] for ch in channels if ch['channel_id'] == channel_id), channel_id)
+                print(f"  • {channel_name}:")
+                print(f"    Lead Conversion: {perf['lead_conversion_rate']:.1f}%")
+                print(f"    Growth Trend: {perf['growth_trend']}")
+                print(f"    Member Value: ${perf['avg_member_value']:.2f}")
+            print("\n" + "="*60)
     
     def _client_to_dict(self, client) -> Dict:
         """Convert client object to dictionary"""
@@ -985,6 +1216,8 @@ def main():
     # Analytics commands
     analytics_parser = subparsers.add_parser("analytics", help="Show channel analytics")
     analytics_parser.add_argument("--channel", help="Channel ID or 'all' for all channels")
+    analytics_parser.add_argument("--partner", help="Partner ID for partner-specific analytics")
+    analytics_parser.add_argument("--official", action="store_true", help="Show only OneMinuta official channel analytics")
     analytics_parser.add_argument("--period", choices=["daily", "weekly", "monthly"], default="weekly", help="Analytics period")
     
     hot_clients_parser = subparsers.add_parser("hot-clients", help="Show hot property clients")
@@ -992,6 +1225,9 @@ def main():
     hot_clients_parser.add_argument("--limit", type=int, default=20, help="Number of clients to show")
     
     client_report_parser = subparsers.add_parser("client-report", help="Generate client analytics report")
+    
+    # Partner management
+    partners_parser = subparsers.add_parser("partners", help="List all configured partners")
     
     args = parser.parse_args()
     
@@ -1073,8 +1309,15 @@ def main():
         elif args.command == "analytics":
             import asyncio
             channel_id = getattr(args, 'channel', None) or "all"
+            partner_id = getattr(args, 'partner', None)
+            official_only = getattr(args, 'official', False)
             period = getattr(args, 'period', 'weekly')
-            asyncio.run(cli.channel_analytics(channel_id, period, json_output=args.json))
+            
+            if official_only:
+                # Show only OneMinuta official channel
+                asyncio.run(cli.official_channel_analytics(json_output=args.json))
+            else:
+                asyncio.run(cli.channel_analytics(channel_id, partner_id, period, json_output=args.json))
         
         elif args.command == "hot-clients":
             import asyncio
@@ -1085,6 +1328,10 @@ def main():
         elif args.command == "client-report":
             import asyncio
             asyncio.run(cli.client_report(json_output=args.json))
+        
+        elif args.command == "partners":
+            import asyncio
+            asyncio.run(cli.list_partners(json_output=args.json))
     
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

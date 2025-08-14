@@ -1,9 +1,0 @@
-{
-  "user_id": "tg_sabay_property",
-  "type": "telegram_channel", 
-  "created_at": "2025-08-13T06:25:45.883452",
-  "display_name": "tg_sabay_property",
-  "source": "telegram_collector",
-  "active": true,
-  "permissions": ["create_listings", "edit_listings", "delete_listings"]
-}

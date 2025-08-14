@@ -1,0 +1,13 @@
+{
+  "for_rent_or_sale": "rent",
+  "price": {
+    "value": 25000,
+    "currency": "THB",
+    "period": "month"
+  },
+  "status": "available",
+  "last_updated": "2025-08-14T19:20:45.999064",
+  "bedrooms": 2,
+  "bathrooms": 2,
+  "area_sqm": 60
+}

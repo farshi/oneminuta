@@ -700,12 +700,31 @@ class ChannelAnalytics:
         
         return recommendations
     
-    async def get_multi_channel_dashboard(self, channel_ids: List[str]) -> Dict:
-        """Generate dashboard data for multiple channels"""
+    async def get_multi_channel_dashboard(self, channel_ids: List[str], 
+                                         partner_id: str = None, 
+                                         include_official: bool = True) -> Dict:
+        """Generate dashboard data for multiple channels, optionally filtered by partner"""
+        
+        # Separate official vs partner channels
+        official_channels = []
+        partner_channels = []
+        
+        # OneMinuta official channel ID
+        oneminuta_official_id = "-1002875386834"
+        
+        for channel_id in channel_ids:
+            if channel_id == oneminuta_official_id:
+                official_channels.append(channel_id)
+            else:
+                partner_channels.append(channel_id)
         
         dashboard = {
             "generated_at": datetime.now(timezone.utc).isoformat(),
             "total_channels": len(channel_ids),
+            "partner_id": partner_id,
+            "official_channels": len(official_channels),
+            "partner_channels": len(partner_channels),
+            "include_official": include_official,
             "channels": [],
             "aggregate_metrics": {
                 "total_members_all": 0,
@@ -720,9 +739,13 @@ class ChannelAnalytics:
         for channel_id in channel_ids:
             metrics = await self.get_channel_metrics(channel_id)
             
+            # Determine channel type
+            channel_type = "official" if channel_id == oneminuta_official_id else "partner"
+            
             channel_summary = {
                 "channel_id": channel_id,
                 "channel_name": metrics.channel_name,
+                "channel_type": channel_type,
                 "members": metrics.total_members,
                 "new_today": metrics.new_members_today,
                 "growth_rate": metrics.daily_growth_rate,  # Keep as number
@@ -732,6 +755,11 @@ class ChannelAnalytics:
                 "status": "🟢 Healthy" if metrics.channel_health_score > 70 else
                          "🟡 Normal" if metrics.channel_health_score > 40 else "🔴 Needs Attention"
             }
+            
+            # Only include in aggregates if appropriate
+            if channel_type == "official" and not include_official and partner_id:
+                # Skip official channel in partner-specific reports
+                continue
             
             dashboard["channels"].append(channel_summary)
             
@@ -752,13 +780,106 @@ class ChannelAnalytics:
             dashboard["aggregate_metrics"]["avg_growth_rate"] = f"{total_growth / len(dashboard['channels']):.1f}%"
         
         return dashboard
+    
+    async def get_official_channel_dashboard(self) -> Dict:
+        """Generate dashboard for OneMinuta's official channel only"""
+        oneminuta_official_id = "-1002875386834"
+        
+        dashboard = await self.get_multi_channel_dashboard(
+            [oneminuta_official_id], 
+            partner_id=None, 
+            include_official=True
+        )
+        
+        # Add official channel specific metrics
+        dashboard["dashboard_type"] = "official"
+        dashboard["company_metrics"] = {
+            "brand_reach": dashboard["aggregate_metrics"]["total_members_all"],
+            "engagement_rate": 0.0,  # TODO: Calculate based on reactions/comments
+            "conversion_to_users": 0,  # TODO: Track how many become bot users
+        }
+        
+        return dashboard
+    
+    async def get_partner_dashboard(self, partner_channels: List[str], partner_name: str = None) -> Dict:
+        """Generate partner-specific dashboard across all their channels"""
+        # Exclude official channel from partner dashboards
+        dashboard = await self.get_multi_channel_dashboard(
+            partner_channels, 
+            partner_id="custom", 
+            include_official=False
+        )
+        
+        # Add partner-specific metrics
+        dashboard["dashboard_type"] = "partner"
+        dashboard["partner_name"] = partner_name
+        dashboard["channel_performance"] = {}
+        
+        # Calculate per-channel performance for the partner
+        for channel in dashboard["channels"]:
+            channel_id = channel["channel_id"]
+            dashboard["channel_performance"][channel_id] = {
+                "lead_conversion_rate": self._calculate_lead_conversion(channel),
+                "avg_member_value": self._calculate_member_value(channel),
+                "growth_trend": self._calculate_growth_trend(channel)
+            }
+        
+        return dashboard
+    
+    def _calculate_lead_conversion(self, channel: Dict) -> float:
+        """Calculate lead conversion rate for a channel"""
+        # Placeholder - implement based on actual lead tracking
+        hot_leads = channel.get("hot_leads", 0)
+        total_members = channel.get("members", 0)
+        return (hot_leads / total_members * 100) if total_members > 0 else 0.0
+    
+    def _calculate_member_value(self, channel: Dict) -> float:
+        """Calculate average member value for a channel"""
+        # Placeholder - implement based on commission tracking
+        return 0.0  # TODO: Implement based on actual transactions
+    
+    def _calculate_growth_trend(self, channel: Dict) -> str:
+        """Calculate growth trend for a channel"""
+        growth_rate = channel.get("growth_rate", 0)
+        if growth_rate > 2.0:
+            return "🚀 Excellent"
+        elif growth_rate > 0.5:
+            return "📈 Good"
+        elif growth_rate > 0:
+            return "➡️ Stable"
+        else:
+            return "📉 Needs Attention"
+
+
+    async def track_partner_event(self, partner_id: str, channel_id: str, 
+                                 event_type: MemberEventType, metadata: Dict = None) -> None:
+        """Track events at partner level for multi-channel analytics"""
+        
+        # Store partner-level event
+        partner_event = {
+            "partner_id": partner_id,
+            "channel_id": channel_id,
+            "event_type": event_type.value,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "metadata": metadata or {}
+        }
+        
+        # Store in partner-specific analytics
+        partner_dir = self.analytics_path / "partners" / partner_id
+        partner_dir.mkdir(parents=True, exist_ok=True)
+        
+        date_str = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        events_file = partner_dir / f"events_{date_str}.ndjson"
+        
+        with open(events_file, "a", encoding="utf-8") as f:
+            f.write(json.dumps(partner_event) + "\n")
 
 
 # Integration with Telegram bot
 async def track_telegram_event(channel_id: str, channel_name: str,
                               user_id: str, event_type: str,
-                              username: str = None) -> None:
-    """Helper function to track Telegram events"""
+                              username: str = None, partner_id: str = None) -> None:
+    """Helper function to track Telegram events with partner support"""
     
     analytics = ChannelAnalytics()
     
@@ -769,6 +890,7 @@ async def track_telegram_event(channel_id: str, channel_name: str,
         "ban": MemberEventType.BANNED
     }
     
+    # Track channel-level event
     await analytics.track_member_event(
         channel_id=channel_id,
         channel_name=channel_name,
@@ -776,3 +898,12 @@ async def track_telegram_event(channel_id: str, channel_name: str,
         event_type=event_type_map.get(event_type, MemberEventType.ACTIVE),
         username=username
     )
+    
+    # Track partner-level event if partner_id provided
+    if partner_id:
+        await analytics.track_partner_event(
+            partner_id=partner_id,
+            channel_id=channel_id,
+            event_type=event_type_map.get(event_type, MemberEventType.ACTIVE),
+            metadata={"username": username, "user_id": user_id}
+        )

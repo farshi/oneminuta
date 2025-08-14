@@ -1,6 +1,7 @@
 """
 Asset Manager for Property Collection
 Integrates extracted properties with OneMinuta's asset storage system
+Uses new storage structure with improved performance and symlinks
 """
 
 import json
@@ -28,6 +29,7 @@ from services.core.models import (
     PropertyStatus,
     SpheriCode,
 )
+from services.core.storage_manager import StorageManager
 from .property_extractor import ExtractedProperty
 
 
@@ -38,16 +40,15 @@ class AssetManager:
         self.storage_path = Path(storage_path)
         self.logger = logging.getLogger(__name__)
 
-        # Ensure storage directories exist
-        self.users_path = self.storage_path / "users"
-        self.geo_path = self.storage_path / "geo"
-        self.global_path = self.storage_path / "global"
+        # Initialize new storage manager
+        self.storage = StorageManager(storage_path)
 
-        for path in [self.users_path, self.geo_path, self.global_path]:
-            path.mkdir(parents=True, exist_ok=True)
-
-        # Telegram channel user mapping (configurable via environment)
-        self.channel_users = self._load_channel_user_mapping()
+        # Partner-owned channels mapping (new business model)
+        self.partners = self._load_partner_configuration()
+        self.channel_to_partner = self._build_channel_mapping()
+        
+        # OneMinuta official channel configuration
+        self.oneminuta_config = self._load_oneminuta_channel_config()
 
         # Location mapping for Thailand - hierarchical cone caps
         # Rawai (small) → Phuket (medium) → Thailand (large)
@@ -79,39 +80,141 @@ class AssetManager:
         self.bits_per_axis = 16
         self.default_prefix_lengths = [2, 4, 6, 8]  # Different precision levels
 
-    def _load_channel_user_mapping(self) -> Dict[str, str]:
-        """Load channel to user ID mapping"""
-        # Map Telegram channels to user IDs who can post listings
-        # In production, this would come from user permissions configuration
-        mapping = {
-            "@phuketgidsell": "tg_phuketgidsell",
-            "@phuketgid": "tg_phuketgid",
-            "@sabay_property": "tg_sabay_property",
+    def _load_partner_configuration(self) -> Dict[str, Dict]:
+        """Load partner configuration with multi-channel support"""
+        # Partner-owned channels model - each partner can own multiple channels
+        partners = {
+            "partner_phuketgid": {
+                "name": "Phuket Property Expert",
+                "channels": ["@phuketgidsell", "@phuketgid"],
+                "contact": "@phuket_agent", 
+                "commission_rate": 0.03,
+                "active": True,
+                "joined": "2025-01-15",
+                "user_id": "tg_partner_phuketgid",  # Storage user ID
+                "bio": "Phuket property expert with 10+ years experience",
+                "languages": ["en", "th"]
+            },
+            "partner_sabay": {
+                "name": "Sabay Property Group",
+                "channels": ["@sabay_property"],
+                "contact": "@sabay_agent",
+                "commission_rate": 0.025, 
+                "active": True,
+                "joined": "2025-01-20",
+                "user_id": "tg_partner_sabay",
+                "bio": "Premium property solutions across Thailand",
+                "languages": ["en", "ru", "th"]
+            }
         }
-
-        # Create user directories if they don't exist
-        for user_id in mapping.values():
-            user_dir = self.users_path / user_id
-            user_dir.mkdir(exist_ok=True)
-
-            # Create user meta.json if it doesn't exist
+        
+        # Create partner user directories using new storage structure
+        for partner_id, partner_data in partners.items():
+            user_id = partner_data["user_id"]
+            # Extract username from user_id (remove tg_partner_ prefix)
+            username = user_id.replace("tg_partner_", "")
+            self.storage.create_user_structure(username)
+            
+            # Create partner meta.json in new structure
+            user_dir = self.storage.users_path / username
             meta_file = user_dir / "meta.json"
             if not meta_file.exists():
-                user_meta = {
+                partner_meta = {
                     "user_id": user_id,
-                    "type": "telegram_channel",
+                    "username": username,
+                    "partner_id": partner_id,
+                    "type": "telegram_partner",
                     "created_at": datetime.utcnow().isoformat(),
-                    "display_name": mapping[
-                        list(mapping.keys())[list(mapping.values()).index(user_id)]
-                    ],
+                    "display_name": partner_data["name"],
+                    "channels": partner_data["channels"],
+                    "contact": partner_data["contact"],
+                    "commission_rate": partner_data["commission_rate"],
                     "source": "telegram_collector",
-                    "active": True,
-                    "permissions": ["create_listings", "edit_listings", "delete_listings"],
+                    "active": partner_data["active"],
+                    "permissions": ["create_listings", "edit_listings", "delete_listings", "manage_channels"],
+                    "bio": partner_data["bio"],
+                    "languages": partner_data["languages"]
                 }
                 with open(meta_file, "w", encoding="utf-8") as f:
-                    json.dump(user_meta, f, indent=2, ensure_ascii=False)
-
-        return mapping
+                    json.dump(partner_meta, f, indent=2, ensure_ascii=False)
+        
+        return partners
+    
+    def _build_channel_mapping(self) -> Dict[str, str]:
+        """Build reverse mapping from channel to partner_id"""
+        channel_mapping = {}
+        for partner_id, partner_data in self.partners.items():
+            for channel in partner_data["channels"]:
+                channel_mapping[channel] = partner_id
+        return channel_mapping
+    
+    def _load_oneminuta_channel_config(self) -> Dict[str, Any]:
+        """Load OneMinuta official channel configuration"""
+        # OneMinuta's own channel - different operations from partner channels
+        oneminuta_config = {
+            "channel_id": "-1002875386834",  # Your actual OneMinuta channel
+            "channel_name": "@oneminuta_property",
+            "display_name": "OneMinuta Property Thailand", 
+            "type": "official",
+            "purpose": "company_channel",
+            "operations": {
+                "collect_properties": False,  # Don't collect from our own channel
+                "track_analytics": True,     # Track for our own metrics
+                "auto_greet_members": True,  # Greet new members
+                "partner_commissions": False, # No partner commissions
+                "daily_reports": False       # Don't include in partner reports
+            },
+            "welcome_message_template": "oneminuta_official",
+            "owner": "oneminuta_team",
+            "created_at": "2025-01-01"
+        }
+        
+        self.logger.info(f"Configured OneMinuta official channel: {oneminuta_config['display_name']}")
+        return oneminuta_config
+    
+    def get_partner_by_channel(self, channel: str) -> Optional[Dict]:
+        """Get partner data by channel name"""
+        partner_id = self.channel_to_partner.get(channel)
+        if partner_id:
+            return self.partners.get(partner_id)
+        return None
+    
+    def get_partner_channels(self, partner_id: str) -> List[str]:
+        """Get all channels owned by a partner"""
+        partner = self.partners.get(partner_id)
+        return partner["channels"] if partner else []
+    
+    def is_oneminuta_official_channel(self, channel_id_or_name: str) -> bool:
+        """Check if channel is OneMinuta's official channel"""
+        return (channel_id_or_name == self.oneminuta_config["channel_id"] or 
+                channel_id_or_name == self.oneminuta_config["channel_name"])
+    
+    def should_collect_from_channel(self, channel: str) -> bool:
+        """Determine if we should collect properties from this channel"""
+        # Don't collect from our own official channel
+        if self.is_oneminuta_official_channel(channel):
+            return self.oneminuta_config["operations"]["collect_properties"]
+        
+        # Only collect from partner channels
+        return channel in self.channel_to_partner
+    
+    def should_track_analytics(self, channel: str) -> bool:
+        """Determine if we should track analytics for this channel"""
+        # Track analytics for our official channel
+        if self.is_oneminuta_official_channel(channel):
+            return self.oneminuta_config["operations"]["track_analytics"]
+        
+        # Track analytics for partner channels
+        return channel in self.channel_to_partner
+    
+    def get_channel_type(self, channel: str) -> str:
+        """Get channel type: 'official', 'partner', or 'unknown'"""
+        if self.is_oneminuta_official_channel(channel):
+            return "official"
+        elif channel in self.channel_to_partner:
+            return "partner" 
+        else:
+            return "unknown"
 
     def _generate_asset_id(self, extracted: ExtractedProperty) -> str:
         """Generate unique asset ID based on message content"""
@@ -208,8 +311,25 @@ class AssetManager:
         location = self._map_location(extracted)
         property_fields = self._extract_property_fields(extracted)
 
-        # Get user ID from channel mapping  
-        user_id = self.channel_users.get(extracted.channel, "unknown_user")
+        # Check if we should collect from this channel
+        if not self.should_collect_from_channel(extracted.channel):
+            if self.is_oneminuta_official_channel(extracted.channel):
+                self.logger.info(f"Skipping collection from OneMinuta official channel {extracted.channel}")
+            else:
+                self.logger.warning(f"Skipping collection from non-partner channel {extracted.channel}")
+            return None
+        
+        # Get partner and username from new mapping
+        partner = self.get_partner_by_channel(extracted.channel)
+        if partner:
+            user_id = partner["user_id"]
+            username = user_id.replace("tg_partner_", "")
+            partner_id = self.channel_to_partner.get(extracted.channel)
+        else:
+            user_id = "unknown_user"
+            username = "unknown"
+            partner_id = None
+            self.logger.warning(f"No partner found for channel {extracted.channel}")
 
         # CRITICAL: Location is MANDATORY - OneMinuta requires geo-sharding
         if not location:
@@ -250,6 +370,7 @@ class AssetManager:
         asset_data = {
             "meta": meta.dict(),
             "state": state.dict(),
+            "description": extracted.message_text,  # Store description separately
             "telegram_metadata": {
                 "sender_id": extracted.sender_id,
                 "extraction_confidence": extracted.extraction_confidence,
@@ -259,7 +380,13 @@ class AssetManager:
                 "photo_count": extracted.photo_count,
                 "message_text": extracted.message_text,
                 "contact_info": extracted.contact_info,
+                "partner_id": partner_id,
+                "partner_name": partner["name"] if partner else None,
+                "partner_contact": partner["contact"] if partner else None,
+                "channel_type": self.get_channel_type(extracted.channel),
+                "is_official_channel": self.is_oneminuta_official_channel(extracted.channel),
             },
+            "username": username  # Add username for storage
         }
 
         return asset_data
@@ -284,59 +411,21 @@ class AssetManager:
     
     def search_assets_by_location(self, center_lat: float, center_lon: float, 
                                  radius_m: float, filters: Dict[str, Any] = None) -> List[Dict[str, Any]]:
-        """Search assets using proper geo-spatial queries with SpheriCode"""
+        """Search assets using new storage system with symlinks"""
         filters = filters or {}
         
-        try:
-            # Get SpheriCode prefixes that cover the search area
-            prefixes = prefixes_for_query(center_lat, center_lon, radius_m, self.bits_per_axis)
-            
-            results = []
-            
-            for prefix in prefixes:
-                # Look in geo structure with nested paths
-                country = "TH"  # TODO: Make this dynamic
-                nested_path = self._create_nested_path(prefix)
-                geo_cell_dir = self.geo_path / country / "spheri" / nested_path
-                properties_dir = geo_cell_dir / "properties"
-                
-                if not properties_dir.exists():
-                    continue
-                
-                # Read all property references in this cell
-                for prop_file in properties_dir.glob("*.json"):
-                    try:
-                        with open(prop_file, "r", encoding="utf-8") as f:
-                            prop_ref = json.load(f)
-                        
-                        # Apply distance filter (precise check)
-                        if not inside_cap(center_lat, center_lon, radius_m, 
-                                        prop_ref["lat"], prop_ref["lon"]):
-                            continue
-                        
-                        # Apply other filters
-                        if self._matches_filters(prop_ref, filters):
-                            results.append(prop_ref)
-                            
-                    except (json.JSONDecodeError, KeyError) as e:
-                        self.logger.warning(f"Corrupted property reference {prop_file}: {e}")
-                        continue
-            
-            # Remove duplicates (same asset might appear in multiple cells)
-            seen = set()
-            unique_results = []
-            for result in results:
-                key = f"{result['user_id']}:{result['asset_id']}"
-                if key not in seen:
-                    seen.add(key)
-                    unique_results.append(result)
-            
-            self.logger.info(f"Geo-spatial search found {len(unique_results)} assets in {radius_m}m radius")
-            return unique_results
-            
-        except Exception as e:
-            self.logger.error(f"Geo-spatial search failed: {e}")
-            return []
+        # Use new storage manager for search
+        asset_type = filters.get("asset_type", "property")
+        transaction_type = filters.get("transaction_type")
+        
+        return self.storage.search_assets_by_location(
+            center_lat=center_lat,
+            center_lon=center_lon,
+            radius_m=radius_m,
+            asset_type=asset_type,
+            transaction_type=transaction_type,
+            filters=filters
+        )
     
     def _matches_filters(self, asset_ref: dict, filters: Dict[str, Any]) -> bool:
         """Check if asset reference matches search filters"""
@@ -393,46 +482,30 @@ class AssetManager:
             return []
 
     def store_asset(self, asset_data: dict) -> bool:
-        """Store asset in OneMinuta's geo-sharded storage system"""
+        """Store asset in OneMinuta's new storage system"""
         try:
             asset_id = asset_data["meta"]["id"]
-            user_id = asset_data["meta"]["owner_user_id"]
-
-            # Store in user's directory
-            user_dir = self.users_path / user_id
-            user_dir.mkdir(exist_ok=True)
-
-            # Store meta.json
-            meta_file = user_dir / f"{asset_id}_meta.json"
-            with open(meta_file, "w", encoding="utf-8") as f:
-                json.dump(asset_data["meta"], f, indent=2, ensure_ascii=False, default=str)
-
-            # Store state.json
-            state_file = user_dir / f"{asset_id}_state.json"
-            with open(state_file, "w", encoding="utf-8") as f:
-                json.dump(asset_data["state"], f, indent=2, ensure_ascii=False, default=str)
-
-            # Store telegram metadata
-            telegram_file = user_dir / f"{asset_id}_telegram.json"
-            with open(telegram_file, "w", encoding="utf-8") as f:
-                json.dump(
-                    asset_data["telegram_metadata"],
-                    f,
-                    indent=2,
-                    ensure_ascii=False,
-                    default=str,
-                )
-
-            # Also store in geo-sharded structure if location available
-            if asset_data["meta"].get("location"):
-                self._store_geo_indexed(asset_data)
-
-            # Update global index
-            self._update_global_index(asset_data)
-
-            channel = asset_data["telegram_metadata"].get("channel", "unknown")
-            self.logger.info(f"Stored asset {asset_id} from {channel}")
-            return True
+            username = asset_data["username"]
+            
+            # Determine asset type and transaction type
+            asset_type = "property"  # Currently only supporting property
+            rent_or_sale = asset_data["state"]["for_rent_or_sale"]
+            transaction_type = "rent" if rent_or_sale == "rent" else "sell"
+            
+            # Use new storage manager
+            success = self.storage.store_asset(
+                username=username,
+                asset_id=asset_id,
+                asset_type=asset_type,
+                transaction_type=transaction_type,
+                asset_data=asset_data
+            )
+            
+            if success:
+                channel = asset_data["telegram_metadata"].get("channel", "unknown")
+                self.logger.info(f"Stored asset {asset_id} from {channel} using new storage structure")
+            
+            return success
 
         except Exception as e:
             asset_id = asset_data.get("meta", {}).get("id", "unknown")
@@ -596,37 +669,8 @@ class AssetManager:
             json.dump(index, f, indent=2, ensure_ascii=False, default=str)
 
     def get_asset_stats(self) -> Dict[str, Any]:
-        """Get asset collection statistics"""
-        global_index_file = self.global_path / "asset_index.json"
-
-        if not global_index_file.exists():
-            return {"total_assets": 0, "by_source": {}, "by_type": {}, "by_user": {}}
-
-        with open(global_index_file, "r", encoding="utf-8") as f:
-            index = json.load(f)
-
-        stats = {
-            "total_assets": index.get("total_count", 0),
-            "last_updated": index.get("last_updated"),
-            "by_source": {},
-            "by_type": {},
-            "by_user": {},
-            "by_transaction": {},
-        }
-
-        # Aggregate statistics
-        for asset in index.get("assets", []):
-            source = asset.get("source", "unknown")
-            asset_type = asset.get("asset_type", "unknown")
-            user_id = asset.get("user_id", "unknown")
-            transaction = asset.get("rent_or_sale", "unknown")
-
-            stats["by_source"][source] = stats["by_source"].get(source, 0) + 1
-            stats["by_type"][asset_type] = stats["by_type"].get(asset_type, 0) + 1
-            stats["by_user"][user_id] = stats["by_user"].get(user_id, 0) + 1
-            stats["by_transaction"][transaction] = stats["by_transaction"].get(transaction, 0) + 1
-
-        return stats
+        """Get asset collection statistics using new storage system"""
+        return self.storage.get_storage_stats()
 
     def search_assets(self, filters: Dict[str, Any]) -> List[Dict[str, Any]]:
         """Search assets with filters"""
@@ -657,3 +701,46 @@ class AssetManager:
             results.append(asset)
 
         return results
+    
+    def archive_asset(self, username: str, asset_id: str, asset_type: str = "property", 
+                     transaction_type: str = "sell") -> bool:
+        """Archive an asset (removes from indexing but keeps in storage)"""
+        return self.storage.archive_asset(username, asset_id, asset_type, transaction_type)
+    
+    def unarchive_asset(self, username: str, asset_id: str, asset_type: str = "property",
+                       transaction_type: str = "sell") -> bool:
+        """Unarchive an asset (adds back to indexing)"""
+        return self.storage.unarchive_asset(username, asset_id, asset_type, transaction_type)
+    
+    def get_user_assets(self, username: str, asset_type: str = None, 
+                       availability: str = None) -> List[Dict[str, Any]]:
+        """Get all assets for a user"""
+        return self.storage.get_user_assets(username, asset_type, availability)
+    
+    def get_partner_assets(self, partner_id: str, availability: str = None) -> List[Dict[str, Any]]:
+        """Get all assets for a partner"""
+        partner = self.partners.get(partner_id)
+        if not partner:
+            return []
+        
+        username = partner["user_id"].replace("tg_partner_", "")
+        return self.storage.get_user_assets(username, availability=availability)
+    
+    def migrate_from_old_storage(self):
+        """Migrate assets from old storage structure to new structure"""
+        try:
+            old_storage = self.storage_path.parent / "_storage"
+            if not old_storage.exists():
+                self.logger.warning("No _storage directory found for migration")
+                return
+            
+            # Move session files and analytics to sys
+            self.storage.move_sessions_to_sys()
+            
+            # TODO: Migrate property assets from old structure
+            # This would involve reading from _storage/users/ and converting to new format
+            
+            self.logger.info("Migration from old storage completed")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to migrate from old storage: {e}")

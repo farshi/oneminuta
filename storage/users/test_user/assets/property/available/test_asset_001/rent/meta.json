@@ -1,0 +1,13 @@
+{
+  "id": "test_asset_001",
+  "owner_user_id": "test_user",
+  "asset_type": "condo",
+  "location": {
+    "city": "Phuket",
+    "area": "Rawai",
+    "lat": 7.77965,
+    "lon": 98.32532,
+    "country": "TH"
+  },
+  "created_at": "2025-08-14T19:20:45.998929"
+}
