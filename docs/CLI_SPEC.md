@@ -18,6 +18,10 @@ oneminuta stats                                             # Storage statistics
 oneminuta reindex                                           # Rebuild indexes
 oneminuta watch --verbose --log-file watch.log             # File monitoring
 
+# Smart Chatbot (NEW!) 🤖
+oneminuta chat                                              # Interactive chatbot
+oneminuta chat-stats                                        # Chatbot statistics
+
 # All search filters supported:
 # --rent, --sale, --min-price, --max-price, --bedrooms, --bathrooms, --type, --limit
 ```
@@ -146,7 +150,45 @@ oneminuta watch --verbose --log-file watch.log
 - ✅ Verbose logging and file output
 - ✅ Graceful shutdown with Ctrl+C
 
-### 7. Wishlist Management 🔴
+### 7. Smart Chatbot ✅
+```bash
+# Start interactive chatbot session ✅ WORKING
+oneminuta chat
+# Guides users through 4-stage conversation:
+# 1. User profile detection (buyer/seller/investor/agent)
+# 2. Smart personalized greeting 
+# 3. Requirements collection (property type, budget, location, etc.)
+# 4. Property matching and presentation
+
+# With specific OpenAI API key
+oneminuta chat --openai-key sk-proj-your-key-here
+
+# Show chatbot session statistics ✅ WORKING  
+oneminuta chat-stats
+# Displays: total sessions, messages, stage distribution
+```
+
+**Features:**
+- ✅ **Multi-language**: English and Russian support
+- ✅ **Staged conversations**: 4 progressive stages
+- ✅ **User profiling**: Automatic buyer/seller/investor detection
+- ✅ **Natural language**: Processes unstructured requirements
+- ✅ **Property integration**: Uses existing geo-search system
+- ✅ **Session persistence**: File-based conversation storage
+- ✅ **Fallback responses**: Works without OpenAI for basic functions
+
+**Test Results:**
+- ✅ All conversation stages working end-to-end
+- ✅ Property matching with geo-sharded search integration
+- ✅ Session management and statistics
+- ✅ Multi-language detection and responses
+- ✅ CLI integration with help and error handling
+
+**Requirements:**
+- OpenAI API key (set `OPENAI_API_KEY` environment variable)
+- `pip install openai>=1.0.0`
+
+### 8. Wishlist Management 🔴
 ```bash
 # Add wish (what user wants)
 oneminuta add-wish --user u_123 --type rent --area Rawai --max-price 25000

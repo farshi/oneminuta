@@ -9,6 +9,10 @@ import time
 import argparse
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Add libs to path
 sys.path.insert(0, str(Path(__file__).parent / "libs" / "geo-spherical"))
@@ -567,16 +571,96 @@ class OneMinutaCLI:
                 print(f"  {area}: {count}")
             print()
         
-        if stats['by_type']:
+        if stats.get('by_type'):
             print("Properties by Type:")
             for ptype, count in sorted(stats['by_type'].items()):
                 print(f"  {ptype}: {count}")
             print()
         
-        if stats['by_status']:
+        if stats.get('by_status'):
             print("Properties by Status:")
             for status, count in sorted(stats['by_status'].items()):
                 print(f"  {status}: {count}")
+    
+    async def chatbot_interactive(self, openai_api_key: str):
+        """Start interactive chatbot session"""
+        try:
+            from services.chatbot.chatbot_manager import OneMinutaChatbotManager
+            
+            print("🤖 OneMinuta Smart Chatbot")
+            print("=" * 40)
+            print("Type 'quit' to exit, 'reset' to restart")
+            print()
+            
+            chatbot = OneMinutaChatbotManager(str(self.storage_path), openai_api_key)
+            
+            user_id = input("Enter user ID (default: 'user'): ").strip() or "user"
+            print(f"Chat started with: {user_id}")
+            print("-" * 30)
+            
+            while True:
+                user_input = input(f"\n{user_id}: ").strip()
+                
+                if not user_input:
+                    continue
+                
+                if user_input.lower() == 'quit':
+                    print("\n👋 Goodbye!")
+                    break
+                
+                if user_input.lower() == 'reset':
+                    await chatbot.reset_conversation(user_id)
+                    print("🔄 Conversation reset")
+                    continue
+                
+                print("🤖: ", end="", flush=True)
+                response = await chatbot.process_message(user_id, user_input)
+                print(response['reply'])
+                
+                if response.get('session_complete'):
+                    print("\n✅ Conversation completed!")
+                    break
+                    
+        except ImportError:
+            print("❌ Chatbot not available. Install dependencies: pip install openai")
+        except Exception as e:
+            print(f"❌ Chatbot error: {e}")
+    
+    async def chatbot_stats(self):
+        """Show chatbot session statistics"""
+        try:
+            from services.chatbot.session_manager import ChatbotSessionManager
+            
+            session_manager = ChatbotSessionManager(str(self.storage_path))
+            stats = await session_manager.get_session_stats()
+            
+            print("🤖 Chatbot Session Statistics")
+            print("=" * 40)
+            
+            if not stats:
+                print("No chatbot sessions found")
+                return
+            
+            print(f"Total Sessions: {stats['total_sessions']}")
+            print(f"Total Messages: {stats['total_messages']}")
+            print(f"Average Messages/Session: {stats['avg_messages']}")
+            print()
+            
+            if stats['by_stage']:
+                print("Sessions by Stage:")
+                for stage, count in stats['by_stage'].items():
+                    print(f"  {stage}: {count}")
+                print()
+                
+            if stats['by_status']:
+                print("Sessions by Status:")
+                for status, count in stats['by_status'].items():
+                    print(f"  {status}: {count}")
+                    
+        except ImportError:
+            print("❌ Chatbot not available")
+        except Exception as e:
+            print(f"❌ Error: {e}")
 
 
 def main():
@@ -619,6 +703,12 @@ def main():
     watch_parser = subparsers.add_parser("watch", help="Watch storage for changes and auto-reindex")
     watch_parser.add_argument("--verbose", action="store_true", help="Verbose output")
     watch_parser.add_argument("--log-file", help="Log file path for watch events")
+    
+    # Chatbot commands
+    chat_parser = subparsers.add_parser("chat", help="Start interactive chatbot session")
+    chat_parser.add_argument("--openai-key", help="OpenAI API key (or set OPENAI_API_KEY env var)")
+    
+    chatbot_stats_parser = subparsers.add_parser("chat-stats", help="Show chatbot session statistics")
     
     args = parser.parse_args()
     
@@ -679,6 +769,23 @@ def main():
         
         elif args.command == "watch":
             cli.watch(verbose=args.verbose, log_file=getattr(args, 'log_file', None))
+        
+        elif args.command == "chat":
+            import os
+            import asyncio
+            
+            # Load from .env or command line argument
+            openai_key = getattr(args, 'openai_key', None) or os.getenv('OPENAI_API_KEY')
+            if not openai_key:
+                print("❌ Error: OpenAI API key required. Add to .env file or use --openai-key")
+                print("Add to .env: OPENAI_API_KEY=your_key_here")
+                return
+            
+            asyncio.run(cli.chatbot_interactive(openai_key))
+        
+        elif args.command == "chat-stats":
+            import asyncio
+            asyncio.run(cli.chatbot_stats())
     
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
