@@ -5,10 +5,13 @@ OneMinuta CLI - Basic implementation for testing
 
 import json
 import sys
+import os
 import time
 import argparse
+import asyncio
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -20,6 +23,10 @@ sys.path.insert(0, str(Path(__file__).parent / "libs" / "geo-spherical"))
 from spherical import surface_distance, inside_cap
 from sphericode import encode_sphericode, prefixes_for_query
 
+# Import analytics and Telegram components
+from services.analytics.channel_analytics import ChannelAnalytics, GrowthPeriod
+from services.analytics.client_analyzer import PropertyClientAnalyzer
+
 
 class OneMinutaCLI:
     """OneMinuta CLI for property search"""
@@ -28,6 +35,10 @@ class OneMinutaCLI:
         self.storage_path = Path(storage_path)
         if not self.storage_path.exists():
             raise FileNotFoundError(f"Storage path {storage_path} does not exist")
+        
+        # Initialize analytics components
+        self.analytics = ChannelAnalytics(storage_path)
+        self.client_analyzer = PropertyClientAnalyzer(storage_path)
     
     def search(self, lat: float, lon: float, radius_m: float = 5000,
                rent: bool = None, sale: bool = None, max_price: float = None,
@@ -350,6 +361,267 @@ class OneMinutaCLI:
             "by_area": by_area,
             "by_type": by_type,
             "by_user": by_user
+        }
+    
+    async def channel_analytics(self, channel_id: str = None, period: str = "weekly", 
+                                json_output: bool = False) -> Dict:
+        """
+        Display channel analytics with growth metrics
+        
+        Args:
+            channel_id: Specific channel ID or 'all' for all channels
+            period: 'daily', 'weekly', or 'monthly'
+            json_output: Return raw JSON data
+        """
+        try:
+            # Map period string to enum
+            period_map = {
+                "daily": GrowthPeriod.DAILY,
+                "weekly": GrowthPeriod.WEEKLY,
+                "monthly": GrowthPeriod.MONTHLY
+            }
+            growth_period = period_map.get(period.lower(), GrowthPeriod.WEEKLY)
+            
+            if channel_id and channel_id != "all":
+                # Get metrics for specific channel
+                metrics = await self.analytics.get_channel_metrics(channel_id)
+                report = await self.analytics.generate_growth_report(channel_id, growth_period)
+                
+                if json_output:
+                    return report
+                else:
+                    self._print_channel_analytics(report)
+                    return report
+            else:
+                # Get all channels from analytics directory
+                analytics_dir = self.storage_path / "analytics" / "channels"
+                channel_ids = []
+                
+                if analytics_dir.exists():
+                    for channel_dir in analytics_dir.iterdir():
+                        if channel_dir.is_dir() and channel_dir.name.startswith("-"):
+                            channel_ids.append(channel_dir.name)
+                
+                if not channel_ids:
+                    print("No channels found in analytics. Add bot to channels to start tracking.")
+                    return {}
+                
+                # Generate multi-channel dashboard
+                dashboard = await self.analytics.get_multi_channel_dashboard(channel_ids)
+                
+                if json_output:
+                    return dashboard
+                else:
+                    self._print_multi_channel_dashboard(dashboard)
+                    return dashboard
+                    
+        except Exception as e:
+            print(f"Error getting channel analytics: {e}")
+            return {}
+    
+    async def hot_clients(self, min_score: float = 61.0, limit: int = 20, 
+                         json_output: bool = False) -> List[Dict]:
+        """
+        Display hot property clients with scores
+        
+        Args:
+            min_score: Minimum hotness score (0-100)
+            limit: Number of clients to show
+            json_output: Return raw JSON data
+        """
+        try:
+            hot_clients = await self.client_analyzer.get_hot_clients(min_score, limit)
+            
+            if json_output:
+                return [self._client_to_dict(c) for c in hot_clients]
+            else:
+                self._print_hot_clients(hot_clients)
+                return hot_clients
+                
+        except Exception as e:
+            print(f"Error getting hot clients: {e}")
+            return []
+    
+    async def client_report(self, json_output: bool = False) -> Dict:
+        """Generate comprehensive client analytics report"""
+        try:
+            report = await self.client_analyzer.generate_daily_report()
+            
+            if json_output:
+                return report
+            else:
+                self._print_client_report(report)
+                return report
+                
+        except Exception as e:
+            print(f"Error generating client report: {e}")
+            return {}
+    
+    def _print_channel_analytics(self, report: Dict):
+        """Pretty print channel analytics"""
+        print("\n" + "="*60)
+        print(f"📊 CHANNEL ANALYTICS - {report.get('channel_name', 'Unknown')}")
+        print("="*60)
+        
+        summary = report.get("summary", {})
+        print(f"\n📈 Summary ({report.get('period', 'Period')})")
+        print(f"  Total Members: {summary.get('total_members', 0):,}")
+        print(f"  Net Growth: {summary.get('net_growth', 0):+,}")
+        print(f"  Growth Rate: {summary.get('growth_rate', 'N/A')}")
+        print(f"  Health Score: {summary.get('health_score', 'N/A')}")
+        
+        growth = report.get("growth_metrics", {})
+        new_members = growth.get("new_members", {})
+        lost_members = growth.get("lost_members", {})
+        
+        print(f"\n👥 Member Activity")
+        print(f"  New Today: {new_members.get('today', 0)}")
+        print(f"  New This Week: {new_members.get('this_week', 0)}")
+        print(f"  New This Month: {new_members.get('this_month', 0)}")
+        print(f"  Left Today: {lost_members.get('today', 0)}")
+        print(f"  Left This Week: {lost_members.get('this_week', 0)}")
+        
+        engagement = report.get("engagement_metrics", {})
+        print(f"\n⚡ Engagement")
+        print(f"  Active Members: {engagement.get('active_members', 0)}")
+        print(f"  Messages Today: {engagement.get('messages_today', 0)}")
+        print(f"  Bot Interactions: {engagement.get('bot_interactions', 0)}")
+        
+        leads = report.get("lead_generation", {})
+        print(f"\n🔥 Lead Generation")
+        print(f"  Hot Leads: {leads.get('hot_leads', 0)}")
+        print(f"  Warm Leads: {leads.get('warm_leads', 0)}")
+        print(f"  Estimated Value: {leads.get('estimated_value', '$0')}")
+        
+        peak = report.get("peak_activity", {})
+        print(f"\n⏰ Peak Activity")
+        print(f"  Best Join Hour: {peak.get('peak_join_hour', 'N/A')}")
+        print(f"  Best Join Day: {peak.get('peak_join_day', 'N/A')}")
+        
+        recommendations = report.get("recommendations", [])
+        if recommendations:
+            print(f"\n💡 Recommendations")
+            for rec in recommendations[:3]:
+                print(f"  • {rec}")
+        
+        print("\n" + "="*60)
+    
+    def _print_multi_channel_dashboard(self, dashboard: Dict):
+        """Pretty print multi-channel dashboard"""
+        print("\n" + "="*60)
+        print("📊 MULTI-CHANNEL ANALYTICS DASHBOARD")
+        print("="*60)
+        
+        agg = dashboard.get("aggregate_metrics", {})
+        print(f"\n📈 Overall Statistics")
+        print(f"  Total Channels: {dashboard.get('total_channels', 0)}")
+        print(f"  Total Members: {agg.get('total_members_all', 0):,}")
+        print(f"  New Today: {agg.get('total_new_today', 0):,}")
+        print(f"  New This Week: {agg.get('total_new_week', 0):,}")
+        print(f"  Avg Growth Rate: {agg.get('avg_growth_rate', 'N/A')}")
+        print(f"  Total Hot Leads: {agg.get('total_hot_leads', 0)}")
+        print(f"  Est. Total Value: ${agg.get('total_estimated_value', 0):,.2f}")
+        
+        channels = dashboard.get("channels", [])
+        if channels:
+            print(f"\n📱 Channel Performance")
+            print("-" * 60)
+            print(f"{'Channel':<25} {'Members':<10} {'New':<8} {'Growth':<10} {'Status':<15}")
+            print("-" * 60)
+            
+            for ch in channels:
+                name = ch.get('channel_name', 'Unknown')[:24]
+                members = ch.get('members', 0)
+                new_today = ch.get('new_today', 0)
+                growth = ch.get('growth_rate_display', 'N/A')
+                status = ch.get('status', 'Unknown')
+                
+                print(f"{name:<25} {members:<10,} {new_today:<8} {growth:<10} {status:<15}")
+        
+        print("\n" + "="*60)
+    
+    def _print_hot_clients(self, clients):
+        """Pretty print hot clients list"""
+        print("\n" + "="*60)
+        print("🔥 HOT PROPERTY CLIENTS")
+        print("="*60)
+        
+        if not clients:
+            print("\nNo hot clients found. Lower the score threshold to see more.")
+            return
+        
+        print(f"\n{'Rank':<6} {'User ID':<15} {'Score':<8} {'Level':<10} {'Budget':<15} {'Locations'}")
+        print("-" * 80)
+        
+        for i, client in enumerate(clients, 1):
+            user_id = client.user_id[:14] if len(client.user_id) > 14 else client.user_id
+            score = f"{client.total_score:.1f}"
+            level = client.hotness_level.value
+            
+            if client.budget_range:
+                budget = f"${client.budget_range[0]:,.0f}-${client.budget_range[1]:,.0f}"
+            else:
+                budget = "Not specified"
+            
+            locations = ", ".join(list(client.preferred_locations)[:2]) if client.preferred_locations else "Any"
+            
+            # Add emoji based on level
+            level_emoji = {
+                "burning": "🔥",
+                "hot": "⚡",
+                "warm": "☀️",
+                "cold": "❄️"
+            }.get(level, "")
+            
+            print(f"{i:<6} {user_id:<15} {score:<8} {level_emoji} {level:<9} {budget:<15} {locations}")
+        
+        print("\n" + "="*60)
+    
+    def _print_client_report(self, report: Dict):
+        """Pretty print client analytics report"""
+        print("\n" + "="*60)
+        print("📊 CLIENT ANALYTICS REPORT")
+        print("="*60)
+        
+        print(f"\n📈 Overview")
+        print(f"  Total Clients: {report.get('total_clients', 0)}")
+        
+        stats = report.get('stats_by_level', {})
+        if stats:
+            print(f"\n🌡️ Client Distribution")
+            for level, data in stats.items():
+                emoji = {
+                    "burning": "🔥",
+                    "hot": "⚡",
+                    "warm": "☀️",
+                    "cold": "❄️"
+                }.get(level, "")
+                print(f"  {emoji} {level.capitalize()}: {data.get('count', 0)} clients (avg score: {data.get('avg_score', 0):.1f})")
+        
+        locations = report.get('top_locations', [])
+        if locations:
+            print(f"\n📍 Top Locations")
+            for loc, count in locations[:5]:
+                print(f"  • {loc}: {count} clients")
+        
+        budget = report.get('avg_budget_range', {})
+        if budget:
+            print(f"\n💰 Average Budget Range")
+            print(f"  Min: ${budget.get('min', 0):,.0f}")
+            print(f"  Max: ${budget.get('max', 0):,.0f}")
+        
+        print("\n" + "="*60)
+    
+    def _client_to_dict(self, client) -> Dict:
+        """Convert client object to dictionary"""
+        return {
+            "user_id": client.user_id,
+            "score": client.total_score,
+            "level": client.hotness_level.value,
+            "budget_range": client.budget_range,
+            "locations": list(client.preferred_locations) if client.preferred_locations else [],
+            "urgency": client.urgency_indicators,
+            "last_active": client.last_active.isoformat() if client.last_active else None
         }
     
     def watch(self, verbose: bool = False, log_file: str = None) -> None:
@@ -710,6 +982,17 @@ def main():
     
     chatbot_stats_parser = subparsers.add_parser("chat-stats", help="Show chatbot session statistics")
     
+    # Analytics commands
+    analytics_parser = subparsers.add_parser("analytics", help="Show channel analytics")
+    analytics_parser.add_argument("--channel", help="Channel ID or 'all' for all channels")
+    analytics_parser.add_argument("--period", choices=["daily", "weekly", "monthly"], default="weekly", help="Analytics period")
+    
+    hot_clients_parser = subparsers.add_parser("hot-clients", help="Show hot property clients")
+    hot_clients_parser.add_argument("--min-score", type=float, default=61.0, help="Minimum hotness score (0-100)")
+    hot_clients_parser.add_argument("--limit", type=int, default=20, help="Number of clients to show")
+    
+    client_report_parser = subparsers.add_parser("client-report", help="Generate client analytics report")
+    
     args = parser.parse_args()
     
     if not args.command:
@@ -786,6 +1069,22 @@ def main():
         elif args.command == "chat-stats":
             import asyncio
             asyncio.run(cli.chatbot_stats())
+        
+        elif args.command == "analytics":
+            import asyncio
+            channel_id = getattr(args, 'channel', None) or "all"
+            period = getattr(args, 'period', 'weekly')
+            asyncio.run(cli.channel_analytics(channel_id, period, json_output=args.json))
+        
+        elif args.command == "hot-clients":
+            import asyncio
+            min_score = getattr(args, 'min_score', 61.0)
+            limit = getattr(args, 'limit', 20)
+            asyncio.run(cli.hot_clients(min_score, limit, json_output=args.json))
+        
+        elif args.command == "client-report":
+            import asyncio
+            asyncio.run(cli.client_report(json_output=args.json))
     
     except Exception as e:
         print(f"Error: {e}", file=sys.stderr)

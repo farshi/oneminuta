@@ -1,0 +1,170 @@
+{
+  "partner_faqs": {
+    "onboarding": {
+      "how_to_join": {
+        "question": "How do I become a OneMinuta partner?",
+        "answer": "Simply message @oneminuta_partners on Telegram with your channel link. Setup takes only 5 minutes - add our bot as admin, and you're ready to start earning commissions immediately. No fees, no contracts required.",
+        "keywords": ["join", "become partner", "sign up", "register", "start"]
+      },
+      "requirements": {
+        "question": "What are the requirements to become a partner?",
+        "answer": "You need: 1) An active Telegram channel with property-related content, 2) Admin access to add our bot, 3) Minimum 100 members (recommended). That's it! No fees or technical knowledge required.",
+        "keywords": ["requirements", "eligibility", "qualify", "criteria"]
+      },
+      "setup_time": {
+        "question": "How long does setup take?",
+        "answer": "Setup takes only 5 minutes! Add @oneminuta_bot as admin to your channel, grant the necessary permissions, and the bot starts working immediately. We provide full support during setup.",
+        "keywords": ["setup time", "how long", "duration", "quick start"]
+      }
+    },
+    "revenue": {
+      "commission_rates": {
+        "question": "How much commission do I earn?",
+        "answer": "You earn: 0.5% on property sales (min $500), 25% of first month on rentals (min $100), $10-50 per qualified lead based on quality. Average channels earn $2,000-5,000 monthly.",
+        "keywords": ["commission", "earnings", "rates", "percentage", "money"]
+      },
+      "payment_schedule": {
+        "question": "When and how do I get paid?",
+        "answer": "Payments are made monthly on the 1st for the previous month's earnings. Minimum payout is $100. We support bank transfer, PayPal, and crypto (USDT). You'll receive detailed earnings reports.",
+        "keywords": ["payment", "payout", "when paid", "payment method"]
+      },
+      "earning_potential": {
+        "question": "How much can I realistically earn?",
+        "answer": "Earnings depend on channel size and engagement: Small channels (1K members) earn $500-1,000/month, Medium (10K) earn $2,000-5,000/month, Large (50K+) earn $10,000+/month.",
+        "keywords": ["potential", "how much earn", "income", "revenue potential"]
+      }
+    },
+    "bot_functionality": {
+      "what_bot_does": {
+        "question": "What exactly does the bot do?",
+        "answer": "The bot: 1) Auto-welcomes new members with personalized messages, 2) Analyzes their property needs using AI, 3) Provides instant property search in English/Russian, 4) Scores leads as Cold/Warm/Hot/Burning, 5) Sends property match alerts.",
+        "keywords": ["bot features", "what does bot do", "functionality", "capabilities"]
+      },
+      "member_privacy": {
+        "question": "Will the bot spam or annoy my members?",
+        "answer": "No! The bot only sends one welcome message when members join and then only responds to direct queries. Members can opt-out anytime. We respect privacy and never share member data.",
+        "keywords": ["spam", "privacy", "annoy", "disturb", "member experience"]
+      },
+      "languages": {
+        "question": "What languages does the bot support?",
+        "answer": "Currently supports English and Russian with 91% accuracy in language detection. The bot automatically detects member's language and responds accordingly. More languages coming soon.",
+        "keywords": ["language", "russian", "english", "multilingual"]
+      }
+    },
+    "technical": {
+      "permissions_needed": {
+        "question": "What permissions does the bot need?",
+        "answer": "Bot needs admin permissions to: Read messages, Send messages, Delete messages, Invite users via link. These allow the bot to welcome new members and moderate property-related content.",
+        "keywords": ["permissions", "admin rights", "access", "requirements"]
+      },
+      "private_channels": {
+        "question": "Does it work with private channels?",
+        "answer": "Yes! The bot works perfectly with both public and private channels. For private channels, the bot can still DM new members and provide all services.",
+        "keywords": ["private channel", "public channel", "channel type"]
+      },
+      "bot_reliability": {
+        "question": "What if the bot goes offline?",
+        "answer": "We maintain 99.9% uptime with automatic failover systems. In rare cases of downtime, your channel continues normally - bot services simply resume when back online. We provide immediate support for any issues.",
+        "keywords": ["reliability", "uptime", "offline", "downtime", "stable"]
+      }
+    },
+    "lead_quality": {
+      "lead_scoring": {
+        "question": "How does lead scoring work?",
+        "answer": "Our AI analyzes: Message frequency, urgency keywords, budget mentions, viewing requests, and engagement patterns. Leads are scored: Burning (86-100) = immediate buyers, Hot (61-85) = active searchers, Warm (31-60) = interested, Cold (0-30) = browsers.",
+        "keywords": ["lead scoring", "hot leads", "quality", "qualification"]
+      },
+      "lead_verification": {
+        "question": "How are leads verified?",
+        "answer": "Leads are verified through: AI analysis of conversation patterns, budget confirmation, direct property inquiries, viewing requests, and response speed. Only verified leads count toward your commission.",
+        "keywords": ["verify", "verification", "authentic", "real leads"]
+      }
+    },
+    "support": {
+      "getting_help": {
+        "question": "How do I get support?",
+        "answer": "Support available via: @oneminuta_partners (Telegram), partners@oneminuta.com (Email), Partner Dashboard for reports. Support hours: 9 AM-6 PM ICT Mon-Fri. Emergency support: @oneminuta_urgent.",
+        "keywords": ["support", "help", "contact", "assistance"]
+      },
+      "training": {
+        "question": "Do you provide training?",
+        "answer": "Yes! We provide: Initial setup assistance, best practices guide, weekly optimization tips, access to partner webinars, and dedicated account manager for channels with 10K+ members.",
+        "keywords": ["training", "learn", "guide", "tutorial"]
+      }
+    },
+    "customization": {
+      "custom_messages": {
+        "question": "Can I customize the bot's messages?",
+        "answer": "Yes! You can customize: Welcome message template, channel-specific information, preferred language (EN/RU), property focus areas, and response tone. Contact support for customization.",
+        "keywords": ["customize", "personalize", "custom message", "template"]
+      },
+      "branding": {
+        "question": "Can I white-label or brand the bot?",
+        "answer": "Premium partners (10K+ members) can request custom branding including: Custom bot name, branded messages, and dedicated subdomain for tracking. Contact partners team for details.",
+        "keywords": ["white label", "branding", "custom bot", "own brand"]
+      }
+    },
+    "competition": {
+      "why_oneminuta": {
+        "question": "Why choose OneMinuta over competitors?",
+        "answer": "OneMinuta offers: 1) Advanced AI with 86.7% accuracy, 2) Free setup and operation, 3) Multilingual support (EN/RU), 4) Geo-location based matching, 5) Proven hot lead generation, 6) Transparent commission structure, 7) Real-time analytics.",
+        "keywords": ["why oneminuta", "vs competition", "comparison", "advantages"]
+      },
+      "channel_exclusivity": {
+        "question": "Can I work with other property bots?",
+        "answer": "Yes, you're free to work with multiple services. However, OneMinuta's AI technology and commission rates typically deliver the best results. Many partners choose us exclusively after comparing performance.",
+        "keywords": ["exclusive", "other bots", "multiple partners", "exclusivity"]
+      }
+    },
+    "growth": {
+      "channel_growth": {
+        "question": "Will this help grow my channel?",
+        "answer": "Yes! Partners report 20-40% increase in engagement and 15-25% better retention. The bot provides valuable service that attracts new members and keeps existing ones active through personalized property matching.",
+        "keywords": ["growth", "increase members", "engagement", "retention"]
+      },
+      "success_metrics": {
+        "question": "How do I measure success?",
+        "answer": "Track success through: Partner dashboard analytics, monthly earnings reports, lead generation count, member engagement rates, and conversion metrics. Average partner sees ROI within first week.",
+        "keywords": ["measure", "metrics", "success", "KPI", "analytics"]
+      }
+    },
+    "risks": {
+      "no_risk": {
+        "question": "What are the risks?",
+        "answer": "There are NO risks! It's free to join, no contracts required, you can remove the bot anytime, your channel data remains private, and you maintain full control. We only succeed when you succeed.",
+        "keywords": ["risk", "safe", "guarantee", "protection"]
+      },
+      "termination": {
+        "question": "Can I stop the partnership anytime?",
+        "answer": "Yes! You can remove the bot instantly without penalty. Any pending commissions will still be paid. No contracts, no termination fees, no obligations. Your channel, your rules.",
+        "keywords": ["stop", "terminate", "cancel", "remove bot", "quit"]
+      }
+    }
+  },
+  "quick_responses": {
+    "greeting": "Welcome! I'm here to answer your questions about OneMinuta Partnership. You can earn commissions by adding our AI property bot to your Telegram channel. What would you like to know?",
+    "more_info": "For detailed information, visit our partner guide at docs.oneminuta.com/partners or message @oneminuta_partners directly.",
+    "apply_now": "Ready to start earning? Message @oneminuta_partners with your channel link. Setup takes just 5 minutes!",
+    "not_understood": "I'm not sure I understand your question. Could you rephrase it or ask about: earnings, setup, bot features, or requirements?"
+  },
+  "conversation_flows": {
+    "interested_partner": [
+      "Great! OneMinuta partnership is free and takes 5 minutes to setup.",
+      "You can earn 0.5% on sales, 25% on rentals, plus $10-50 per lead.",
+      "Our AI bot auto-welcomes new members and helps them find properties.",
+      "Ready to start? Message @oneminuta_partners with your channel link!"
+    ],
+    "skeptical_partner": [
+      "I understand your concerns. OneMinuta is 100% free with no hidden costs.",
+      "You maintain full control and can remove the bot anytime.",
+      "We have partners earning $2,000-10,000+ monthly with proven results.",
+      "Try it risk-free for a week - most partners see results within days."
+    ],
+    "technical_partner": [
+      "Our bot uses GPT-4 AI with 86.7% accuracy for intent detection.",
+      "It supports English and Russian with automatic language detection.",
+      "The bot needs standard admin permissions to welcome new members.",
+      "We provide full API access and analytics dashboard for tracking."
+    ]
+  }
+}

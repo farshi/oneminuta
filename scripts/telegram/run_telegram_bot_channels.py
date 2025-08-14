@@ -44,6 +44,7 @@ except ImportError:
     from telegram.constants import ChatMemberStatus
 
 from services.chatbot.chatbot_manager import OneMinutaChatbotManager
+from services.analytics.channel_analytics import ChannelAnalytics, MemberEventType
 
 # Setup logging
 logging.basicConfig(
@@ -59,6 +60,9 @@ class OneMinutaChannelBot:
         
         # Initialize OneMinuta chatbot
         self.chatbot = OneMinutaChatbotManager(storage_path, openai_api_key)
+        
+        # Initialize Channel Analytics
+        self.analytics = ChannelAnalytics(storage_path)
         
         # Initialize Telegram bot
         self.application = Application.builder().token(token).build()
@@ -88,6 +92,7 @@ class OneMinutaChannelBot:
         self.application.add_handler(CommandHandler("help", self.help_command))
         self.application.add_handler(CommandHandler("channels", self.channels_command))
         self.application.add_handler(CommandHandler("join", self.simulate_join_command))
+        self.application.add_handler(CommandHandler("analytics", self.analytics_command))
         
         # Channel member updates (for auto-greeting new members)
         self.application.add_handler(ChatMemberHandler(self.handle_member_update, ChatMemberHandler.CHAT_MEMBER))
@@ -114,8 +119,44 @@ class OneMinutaChannelBot:
                     return
                 
                 channel_info = self.partner_channels[chat.id]
+                
+                # Track new member join in analytics
+                await self.analytics.track_member_event(
+                    channel_id=str(chat.id),
+                    channel_name=chat.title or channel_info.get("name", "Unknown"),
+                    user_id=str(user.id),
+                    event_type=MemberEventType.JOINED,
+                    username=user.username,
+                    metadata={
+                        "first_name": user.first_name,
+                        "last_name": user.last_name,
+                        "is_premium": getattr(user, 'is_premium', False)
+                    }
+                )
+                
+                # Sync real member count after tracking event
+                await self.analytics.sync_real_member_count(str(chat.id), context.bot)
+                logger.info(f"Tracked new member join: {user.username or user.id} in {chat.title}")
+                
                 if channel_info.get("auto_greet", True):
                     await self.send_welcome_dm(user, chat, channel_info)
+            
+            # Track member leaving
+            elif (chat.id in self.partner_channels and
+                  old_status in [ChatMemberStatus.MEMBER, ChatMemberStatus.ADMINISTRATOR] and
+                  new_status in [ChatMemberStatus.LEFT, ChatMemberStatus.BANNED]):
+                
+                await self.analytics.track_member_event(
+                    channel_id=str(chat.id),
+                    channel_name=chat.title or "Unknown",
+                    user_id=str(user.id),
+                    event_type=MemberEventType.LEFT if new_status == ChatMemberStatus.LEFT else MemberEventType.BANNED,
+                    username=user.username
+                )
+                
+                # Sync real member count after tracking event
+                await self.analytics.sync_real_member_count(str(chat.id), context.bot)
+                logger.info(f"Tracked member leave: {user.username or user.id} from {chat.title}")
                     
         except Exception as e:
             logger.error(f"Error handling member update: {e}")
@@ -310,6 +351,70 @@ This usually means:
         
         await update.message.reply_text(stats_msg)
     
+    async def analytics_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Display channel analytics"""
+        user = update.effective_user
+        
+        # Check if user is admin (you might want to restrict this)
+        # For now, showing basic analytics to everyone
+        
+        try:
+            # Get analytics for all partner channels
+            if self.partner_channels:
+                analytics_msg = "📊 **Channel Analytics Dashboard**\n\n"
+                
+                for channel_id, channel_info in self.partner_channels.items():
+                    # First sync with real Telegram member count
+                    await self.analytics.sync_real_member_count(str(channel_id), self.application.bot)
+                    
+                    # Get updated metrics
+                    metrics = await self.analytics.get_channel_metrics(
+                        str(channel_id), 
+                        channel_info.get("name", "Unknown"),
+                        self.application.bot
+                    )
+                    
+                    # Format metrics
+                    growth_emoji = "📈" if metrics.daily_growth_rate > 0 else "📉" if metrics.daily_growth_rate < 0 else "➡️"
+                    health_emoji = "🟢" if metrics.channel_health_score > 70 else "🟡" if metrics.channel_health_score > 40 else "🔴"
+                    
+                    channel_stats = f"""**{channel_info.get('name', 'Channel')}**
+{health_emoji} Health: {metrics.channel_health_score:.0f}/100
+👥 Total Members: {metrics.total_members}
+{growth_emoji} Growth Today: {metrics.new_members_today} joined, {metrics.left_members_today} left
+📊 Growth Rate: {metrics.daily_growth_rate:.1f}% daily, {metrics.weekly_growth_rate:.1f}% weekly
+🔥 Hot Leads: {metrics.hot_leads_generated}
+⚡ Active Members: {metrics.active_members}
+
+"""
+                    analytics_msg += channel_stats
+                
+                # Add summary
+                analytics_msg += """📈 **Growth Tips:**
+• Best time to post: Check peak join hours
+• Improve retention with engaging content
+• Use /analytics regularly to track progress
+
+🔗 **Partner Program:**
+Earn commissions on property transactions!
+Contact @oneminuta_partners to learn more."""
+                
+            else:
+                analytics_msg = """📊 **No Analytics Available**
+
+No partner channels configured yet.
+
+**Want to track your channel?**
+1. Add @oneminuta_bot as admin
+2. Contact @oneminuta_partners
+3. Start earning from your community!"""
+            
+            await update.message.reply_text(analytics_msg)
+            
+        except Exception as e:
+            logger.error(f"Error getting analytics: {e}")
+            await update.message.reply_text("❌ Error loading analytics. Please try again later.")
+    
     async def help_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /help command"""
         help_msg = """🤖 **OneMinuta Help Center**
@@ -335,6 +440,7 @@ Just tell me what you want in natural language!
 • `/start` - Begin new search
 • `/reset` - Clear history  
 • `/stats` - View your activity
+• `/analytics` - Channel growth analytics
 • `/channels` - Partner channels
 • `/join` - Test channel join experience
 • `/help` - This message
