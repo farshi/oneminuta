@@ -11,7 +11,11 @@ import os
 import sys
 from pathlib import Path
 from typing import Dict, List, Any
-import pytest
+# Optional pytest import
+try:
+    import pytest
+except ImportError:
+    pytest = None
 
 # Add project root to path
 project_root = Path(__file__).parent.parent.parent
