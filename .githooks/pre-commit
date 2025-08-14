@@ -1,0 +1,84 @@
+#!/bin/bash
+# Pre-commit hook - Run quick tests before allowing commit
+# These tests don't require external APIs and run fast
+
+echo "🔍 Running pre-commit tests..."
+echo "================================"
+
+# Store current directory
+ORIGINAL_DIR=$(pwd)
+
+# Change to project root (hooks run from .git/hooks/)
+cd "$(git rev-parse --show-toplevel)"
+
+# Load environment variables from .env if it exists
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# Run quick tests (no API required)
+echo "Running quick tests..."
+python tests/run_all_tests.py --category quick
+
+# Capture the exit code
+TEST_RESULT=$?
+
+# Check if tests passed
+if [ $TEST_RESULT -ne 0 ]; then
+    echo ""
+    echo "❌ Pre-commit tests FAILED!"
+    echo "================================"
+    echo "Tests must pass before committing."
+    echo ""
+    echo "To bypass (NOT recommended):"
+    echo "  git commit --no-verify"
+    echo ""
+    echo "To run tests manually:"
+    echo "  ./run_tests.sh quick"
+    
+    # Return to original directory
+    cd "$ORIGINAL_DIR"
+    exit 1
+fi
+
+# Run basic Python syntax check
+echo ""
+echo "Checking Python syntax..."
+python -m py_compile services/**/*.py tests/**/*.py 2>/dev/null
+
+if [ $? -ne 0 ]; then
+    echo "❌ Python syntax errors found!"
+    echo "Please fix syntax errors before committing."
+    cd "$ORIGINAL_DIR"
+    exit 1
+fi
+
+# Check for debug print statements in production code
+echo "Checking for debug statements..."
+DEBUG_FOUND=$(grep -r "print(" services/ --include="*.py" | grep -v "#" | wc -l)
+
+if [ $DEBUG_FOUND -gt 0 ]; then
+    echo "⚠️  Warning: Found $DEBUG_FOUND print statements in services/"
+    echo "Consider using logging instead of print() in production code."
+    # This is a warning, not a failure
+fi
+
+# Check for API keys in code (but not in test examples)
+echo "Checking for hardcoded secrets..."
+SECRETS_FOUND=$(grep -r -E "(api_key|API_KEY|api_hash|API_HASH|bot_token|BOT_TOKEN)\s*=\s*['\"][^'\"]*['\"]" services/ --include="*.py" | grep -v ".env" | grep -v "os.getenv" | grep -v "test_key" | grep -v "mock_key" | grep -v "your-" | grep -v "sk-proj-\.\.\." | wc -l)
+
+if [ $SECRETS_FOUND -gt 0 ]; then
+    echo "❌ Found potential hardcoded secrets in production code!"
+    echo "All API keys should be loaded from environment variables."
+    grep -r -E "(api_key|API_KEY|api_hash|API_HASH|bot_token|BOT_TOKEN)\s*=\s*['\"][^'\"]*['\"]" services/ --include="*.py" | grep -v ".env" | grep -v "os.getenv" | grep -v "test_key" | grep -v "mock_key" | grep -v "your-" | grep -v "sk-proj-\.\.\."
+    cd "$ORIGINAL_DIR"
+    exit 1
+fi
+
+echo ""
+echo "✅ All pre-commit checks passed!"
+echo "================================"
+
+# Return to original directory
+cd "$ORIGINAL_DIR"
+exit 0

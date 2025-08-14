@@ -1,0 +1,93 @@
+#!/bin/bash
+# Pre-push hook - Run comprehensive tests before pushing
+# Includes NLP tests if OpenAI API key is available
+
+echo "🚀 Running pre-push tests..."
+echo "================================"
+
+# Store current directory
+ORIGINAL_DIR=$(pwd)
+
+# Change to project root
+cd "$(git rev-parse --show-toplevel)"
+
+# Load environment variables from .env if it exists
+if [ -f .env ]; then
+    export $(cat .env | grep -v '^#' | xargs)
+fi
+
+# Check if we're pushing to main/master branch
+protected_branch='main|master'
+current_branch=$(git symbolic-ref HEAD | sed -e 's,.*/\(.*\),\1,')
+
+if [[ "$current_branch" =~ $protected_branch ]]; then
+    echo "Pushing to protected branch: $current_branch"
+    echo "Running comprehensive tests..."
+    
+    # Run all tests if OpenAI key is available
+    if [ ! -z "$OPENAI_API_KEY" ]; then
+        echo "OpenAI API key found - running full test suite..."
+        python tests/run_all_tests.py --category all
+    else
+        echo "No OpenAI API key - running quick tests only..."
+        python tests/run_all_tests.py --category quick
+    fi
+else
+    echo "Pushing to feature branch: $current_branch"
+    echo "Running quick tests..."
+    python tests/run_all_tests.py --category quick
+fi
+
+# Capture the exit code
+TEST_RESULT=$?
+
+# Check if tests passed
+if [ $TEST_RESULT -ne 0 ]; then
+    echo ""
+    echo "❌ Pre-push tests FAILED!"
+    echo "================================"
+    echo "Tests must pass before pushing."
+    echo ""
+    echo "To bypass (NOT recommended for main branch):"
+    echo "  git push --no-verify"
+    echo ""
+    echo "To run tests manually:"
+    echo "  ./run_tests.sh all"
+    
+    cd "$ORIGINAL_DIR"
+    exit 1
+fi
+
+# Check test coverage if pytest-cov is installed
+if command -v pytest &> /dev/null; then
+    echo ""
+    echo "Checking test coverage..."
+    pytest tests/unit/ --cov=services --cov-report=term-missing --quiet 2>/dev/null
+    
+    # This is informational only, don't fail on coverage
+fi
+
+# Check for uncommitted changes
+UNCOMMITTED=$(git status --porcelain)
+if [ ! -z "$UNCOMMITTED" ]; then
+    echo ""
+    echo "⚠️  Warning: You have uncommitted changes:"
+    git status --short
+    echo "Consider committing or stashing these changes."
+fi
+
+# Check for TODO comments in code
+TODO_COUNT=$(grep -r "TODO\|FIXME\|XXX" services/ tests/ --include="*.py" | wc -l)
+if [ $TODO_COUNT -gt 0 ]; then
+    echo ""
+    echo "📝 Note: Found $TODO_COUNT TODO/FIXME comments in code"
+    # This is informational only
+fi
+
+echo ""
+echo "✅ All pre-push checks passed!"
+echo "================================"
+
+# Return to original directory
+cd "$ORIGINAL_DIR"
+exit 0

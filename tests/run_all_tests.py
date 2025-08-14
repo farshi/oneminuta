@@ -54,15 +54,22 @@ def main():
     
     if args.category in ["all", "quick", "chatbot"]:
         # Chatbot tests
-        chatbot_tests = [
-            ("Structure Test", tests_dir / "chatbot" / "test_chatbot_structure.py"),
-            ("Mock Test", tests_dir / "chatbot" / "test_chatbot_mock.py"),
-            ("NLP Extraction", tests_dir / "chatbot" / "run_nlp_tests.py"),
-        ]
-        
-        if args.category != "quick":
-            # Add full tests if not quick mode
-            chatbot_tests.append(("Full Chatbot Test", tests_dir / "chatbot" / "test_chatbot.py"))
+        if args.category == "quick":
+            # Quick tests - no external APIs required
+            chatbot_tests = [
+                ("Minimal Test", tests_dir / "chatbot" / "test_chatbot_minimal.py"),
+            ]
+        else:
+            # Full tests
+            chatbot_tests = [
+                ("Structure Test", tests_dir / "chatbot" / "test_chatbot_structure.py"),
+                ("Mock Test", tests_dir / "chatbot" / "test_chatbot_mock.py"),
+                ("NLP Extraction", tests_dir / "chatbot" / "run_nlp_tests.py"),
+            ]
+            
+            if args.category == "all":
+                # Add comprehensive tests for full run
+                chatbot_tests.append(("Full Chatbot Test", tests_dir / "chatbot" / "test_chatbot.py"))
         
         for test_name, test_path in chatbot_tests:
             if test_path.exists():
