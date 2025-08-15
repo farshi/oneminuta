@@ -18,6 +18,7 @@ except ImportError:
     openai = None
 
 from services.core.models import AssetType, RentOrSale
+from libs.config_loader import get_openai_api_key
 
 
 @dataclass
@@ -65,14 +66,14 @@ class LLMClientAnalysis:
 class LLMPropertyAnalyzer:
     """LLM-based analyzer for property client messages"""
     
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini", storage_path: str = "./storage"):
-        self.api_key = api_key
+    def __init__(self, api_key: str = None, model: str = "gpt-4o-mini", storage_path: str = "./storage"):
+        self.api_key = api_key or get_openai_api_key(required=False)
         self.model = model
         self.storage_path = Path(storage_path)
         
         # Initialize OpenAI client
-        if openai:
-            self.openai_client = openai.AsyncOpenAI(api_key=api_key)
+        if openai and self.api_key:
+            self.openai_client = openai.AsyncOpenAI(api_key=self.api_key)
         else:
             self.openai_client = None
         
@@ -618,9 +619,8 @@ class LLMClientMonitor:
 async def test_llm_analyzer():
     """Test function for the LLM analyzer"""
     
-    # Initialize analyzer (you'll need to set your OpenAI API key)
+    # Initialize analyzer using config loader
     analyzer = LLMPropertyAnalyzer(
-        api_key="your-openai-api-key",  # Set this from environment
         storage_path="./storage"
     )
     

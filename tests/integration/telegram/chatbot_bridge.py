@@ -22,6 +22,7 @@ project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
 from services.chatbot.chatbot_manager import OneMinutaChatbotManager
+from libs.config_loader import get_openai_api_key
 
 
 class TelegramChatbotBridge:
@@ -361,7 +362,7 @@ async def main():
     args = parser.parse_args()
     
     # Get OpenAI API key
-    openai_key = args.openai_key or os.getenv('OPENAI_API_KEY')
+    openai_key = args.openai_key or get_openai_api_key(required=False)
     if not openai_key:
         print("❌ Error: OpenAI API key required. Set OPENAI_API_KEY env var or use --openai-key")
         return

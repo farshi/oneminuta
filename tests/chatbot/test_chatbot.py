@@ -4,20 +4,20 @@ Quick test for OneMinuta Smart Chatbot
 """
 
 import asyncio
-import os
 import sys
 from pathlib import Path
 
 # Add project to path
-# Add project to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
+
+from libs.config_loader import get_openai_api_key
 
 async def test_chatbot():
     """Test chatbot with sample conversation"""
     
     # Check if OpenAI key is available
-    openai_key = os.getenv('OPENAI_API_KEY')
+    openai_key = get_openai_api_key(required=False)
     if not openai_key:
         print("❌ OPENAI_API_KEY not found in environment")
         print("Set it with: export OPENAI_API_KEY='your-key-here'")

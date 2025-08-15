@@ -8,26 +8,24 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Add project to path
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from libs.config_loader import get_openai_api_key
+
 async def main():
     print("🧪 OneMinuta NLP Extraction Tests")
     print("=" * 50)
     
-    # Check if OpenAI API key is available (from .env)
-    openai_key = os.getenv('OPENAI_API_KEY')
+    # Check if OpenAI API key is available (from config loader)
+    openai_key = get_openai_api_key(required=False)
     if openai_key:
-        print("✅ OpenAI API key loaded from .env - running full tests")
+        print("✅ OpenAI API key loaded from configuration - running full tests")
         use_api = True
     else:
-        print("⚠️ No OpenAI API key in .env - running structural tests only")
+        print("⚠️ No OpenAI API key in configuration - running structural tests only")
         use_api = False
     
     try:

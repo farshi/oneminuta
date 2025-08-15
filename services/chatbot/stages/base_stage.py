@@ -8,23 +8,28 @@ import logging
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 import openai
+from libs.config_loader import get_openai_api_key
 
 
 class BaseChatbotStage(ABC):
     """Base class for all chatbot conversation stages"""
     
-    def __init__(self, openai_api_key: str):
-        self.openai_api_key = openai_api_key
+    def __init__(self, openai_api_key: str = None):
+        # Use provided key or get from config
+        self.openai_api_key = openai_api_key or get_openai_api_key(required=False)
         self.logger = logging.getLogger(self.__class__.__name__)
         
-        # Only initialize OpenAI client if not a mock key
-        if openai_api_key and openai_api_key != "mock_key":
+        # Only initialize OpenAI client if we have a valid key
+        if self.openai_api_key and self.openai_api_key not in ["mock_key", "test_key"]:
             try:
-                self.client = openai.OpenAI(api_key=openai_api_key)
+                self.client = openai.OpenAI(api_key=self.openai_api_key)
+                self.logger.debug("OpenAI client initialized successfully")
             except Exception as e:
                 self.logger.warning(f"Failed to initialize OpenAI client: {e}")
+                self.logger.info("OpenAI functionality will be disabled. Set OPENAI_API_KEY environment variable to enable.")
                 self.client = None
         else:
+            self.logger.debug("Using mock mode or no API key provided - OpenAI client disabled")
             self.client = None
     
     @abstractmethod

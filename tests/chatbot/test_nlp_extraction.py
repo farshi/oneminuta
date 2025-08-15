@@ -21,6 +21,8 @@ except ImportError:
 project_root = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(project_root))
 
+from libs.config_loader import get_openai_api_key
+
 from services.chatbot.stages.user_profile_detection import UserProfileDetectionStage
 from services.chatbot.stages.inquiry_collection import InquiryCollectionStage
 
@@ -29,7 +31,7 @@ class NLPExtractionTester:
     """Test suite for natural language processing accuracy"""
     
     def __init__(self, openai_api_key: str = None):
-        self.openai_api_key = openai_api_key or os.getenv('OPENAI_API_KEY', 'test_key')
+        self.openai_api_key = openai_api_key or get_openai_api_key(required=False) or 'test_key'
         self.profile_stage = UserProfileDetectionStage(self.openai_api_key)
         self.inquiry_stage = InquiryCollectionStage(self.openai_api_key)
         
@@ -536,7 +538,7 @@ async def main():
     args = parser.parse_args()
     
     # Get API key
-    api_key = args.openai_key or os.getenv('OPENAI_API_KEY')
+    api_key = args.openai_key or get_openai_api_key(required=False)
     if not api_key:
         print("⚠️ Warning: No OpenAI API key provided. Using mock responses.")
         api_key = "test_key"

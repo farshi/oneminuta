@@ -6,6 +6,7 @@ Centralized config loader following project guidelines
 import os
 from typing import Optional, List
 from pathlib import Path
+from libs.config_loader import get_config, get_openai_api_key, get_telegram_api_id, get_telegram_api_hash
 
 
 class AnalyticsConfig:
@@ -16,28 +17,32 @@ class AnalyticsConfig:
         self._load_config()
     
     def _load_config(self):
-        """Load configuration from .env file"""
+        """Load configuration using centralized config loader"""
         # OpenAI/LLM Configuration
-        self.OPENAI_API_KEY: str = self._require_env('OPENAI_API_KEY')
-        self.LLM_MODEL: str = os.getenv('LLM_MODEL', 'gpt-4o-mini')
-        self.LLM_TEMPERATURE: float = float(os.getenv('LLM_TEMPERATURE', '0.1'))
-        self.LLM_MAX_TOKENS: int = int(os.getenv('LLM_MAX_TOKENS', '1000'))
+        self.OPENAI_API_KEY: str = get_openai_api_key(required=True)
+        self.LLM_MODEL: str = get_config('LLM_MODEL', default='gpt-4o-mini')
+        self.LLM_TEMPERATURE: float = float(get_config('LLM_TEMPERATURE', default='0.1'))
+        self.LLM_MAX_TOKENS: int = int(get_config('LLM_MAX_TOKENS', default='1000'))
         
         # Telegram Configuration
-        self.TELEGRAM_API_ID: int = int(self._require_env('TELEGRAM_API_ID'))
-        self.TELEGRAM_API_HASH: str = self._require_env('TELEGRAM_API_HASH')
+        telegram_api_id = get_telegram_api_id(required=False)
+        telegram_api_hash = get_telegram_api_hash(required=False)
+        if not telegram_api_id or not telegram_api_hash:
+            raise ValueError("TELEGRAM_API_ID and TELEGRAM_API_HASH are required for analytics service")
+        self.TELEGRAM_API_ID: int = int(telegram_api_id)
+        self.TELEGRAM_API_HASH: str = telegram_api_hash
         
         # Storage Configuration
-        self.STORAGE_PATH: str = os.getenv('STORAGE_PATH', './storage')
-        self.SESSION_PATH: str = os.getenv('SESSION_PATH', './sessions')
+        self.STORAGE_PATH: str = get_config('STORAGE_PATH', default='./storage')
+        self.SESSION_PATH: str = get_config('SESSION_PATH', default='./sessions')
         
         # Alert Configuration
-        self.WEBHOOK_URL: Optional[str] = os.getenv('WEBHOOK_URL')
-        self.HOT_CLIENT_THRESHOLD: float = float(os.getenv('HOT_CLIENT_THRESHOLD', '70.0'))
-        self.BURNING_CLIENT_THRESHOLD: float = float(os.getenv('BURNING_CLIENT_THRESHOLD', '85.0'))
+        self.WEBHOOK_URL: Optional[str] = get_config('WEBHOOK_URL')
+        self.HOT_CLIENT_THRESHOLD: float = float(get_config('HOT_CLIENT_THRESHOLD', default='70.0'))
+        self.BURNING_CLIENT_THRESHOLD: float = float(get_config('BURNING_CLIENT_THRESHOLD', default='85.0'))
         
-        # Monitoring Configuration - from environment
-        channels_env = os.getenv('TELEGRAM_CHANNELS', '')
+        # Monitoring Configuration - from centralized config
+        channels_env = get_config('TELEGRAM_CHANNELS', default='')
         if channels_env:
             self.DEFAULT_CHANNELS: List[str] = [ch.strip() for ch in channels_env.split(',')]
         else:
@@ -49,20 +54,18 @@ class AnalyticsConfig:
             ]
         
         # Language Configuration
-        languages_env = os.getenv('SUPPORTED_LANGUAGES', 'en,ru')
+        languages_env = get_config('SUPPORTED_LANGUAGES', default='en,ru')
         self.SUPPORTED_LANGUAGES: List[str] = [lang.strip() for lang in languages_env.split(',')]
-        self.DEFAULT_LANGUAGE: str = os.getenv('DEFAULT_LANGUAGE', 'en')
+        self.DEFAULT_LANGUAGE: str = get_config('DEFAULT_LANGUAGE', default='en')
         
         # Analysis Configuration
-        self.MAX_MESSAGES_PER_ANALYSIS: int = int(os.getenv('MAX_MESSAGES_PER_ANALYSIS', '20'))
-        self.MAX_STORED_MESSAGES: int = int(os.getenv('MAX_STORED_MESSAGES', '50'))
-        self.ANALYSIS_CACHE_TTL: int = int(os.getenv('ANALYSIS_CACHE_TTL', '3600'))
+        self.MAX_MESSAGES_PER_ANALYSIS: int = int(get_config('MAX_MESSAGES_PER_ANALYSIS', default='20'))
+        self.MAX_STORED_MESSAGES: int = int(get_config('MAX_STORED_MESSAGES', default='50'))
+        self.ANALYSIS_CACHE_TTL: int = int(get_config('ANALYSIS_CACHE_TTL', default='3600'))
     
     def _require_env(self, var_name: str) -> str:
-        """Require an environment variable to be set"""
-        value = os.getenv(var_name)
-        if not value:
-            raise ValueError(f"Required environment variable {var_name} not set")
+        """Require an environment variable to be set (legacy method - use config loader instead)"""
+        value = get_config(var_name, required=True)
         return value
     
     def get_session_path(self) -> Path:
@@ -72,10 +75,11 @@ class AnalyticsConfig:
     def validate(self) -> bool:
         """Validate required configuration"""
         try:
-            # Required fields will raise ValueError if missing
-            self._require_env('OPENAI_API_KEY')
-            self._require_env('TELEGRAM_API_ID') 
-            self._require_env('TELEGRAM_API_HASH')
+            # Check required configuration using centralized loader
+            if not self.OPENAI_API_KEY:
+                raise ValueError("OPENAI_API_KEY is required")
+            if not self.TELEGRAM_API_ID or not self.TELEGRAM_API_HASH:
+                raise ValueError("TELEGRAM_API_ID and TELEGRAM_API_HASH are required")
             print("✅ Analytics configuration validated")
             return True
         except ValueError as e:

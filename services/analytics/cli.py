@@ -24,7 +24,6 @@ async def analyze_client(args):
         sys.exit(1)
     
     analyzer = LLMPropertyAnalyzer(
-        api_key=config.OPENAI_API_KEY,
         model=config.LLM_MODEL,
         storage_path=config.STORAGE_PATH
     )
@@ -97,7 +96,6 @@ async def list_hot_clients(args):
         sys.exit(1)
     
     analyzer = LLMPropertyAnalyzer(
-        api_key=config.OPENAI_API_KEY,
         storage_path=config.STORAGE_PATH
     )
     
@@ -146,7 +144,6 @@ async def generate_report(args):
         sys.exit(1)
     
     analyzer = LLMPropertyAnalyzer(
-        api_key=config.OPENAI_API_KEY,
         storage_path=config.STORAGE_PATH
     )
     
@@ -276,7 +273,6 @@ async def test_analysis(args):
         ]
     
     analyzer = LLMPropertyAnalyzer(
-        api_key=config.OPENAI_API_KEY,
         model=config.LLM_MODEL,
         storage_path=config.STORAGE_PATH
     )
