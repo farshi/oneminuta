@@ -6,10 +6,15 @@ import os
 import pytest
 from unittest.mock import patch
 from services.analytics.config import AnalyticsConfig, get_config
+from libs.config_loader import config as global_config
 
 
 class TestAnalyticsConfig:
     """Test analytics configuration loading"""
+    
+    def setup_method(self):
+        """Clear config cache before each test"""
+        global_config.clear_cache()
     
     def test_config_requires_openai_key(self):
         """Test that OPENAI_API_KEY is required"""
