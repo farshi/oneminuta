@@ -1,5 +1,8 @@
 # Core dependencies for OneMinuta platform
 
+# AI/LLM integration
+openai>=1.0.0
+
 # Telegram integration
 telethon>=1.30.0
 aiogram>=3.0.0
