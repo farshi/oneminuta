@@ -68,12 +68,25 @@ class UserProfileDetectionStage(BaseChatbotStage):
 
 Analyze the user's message and determine:
 1. User type: buyer, seller, agent, investor
+   - buyer: Looking to purchase or rent property for personal use
+   - seller: Wants to sell or list their property
+   - agent: Real estate professional needing platform access
+   - investor: Looking for investment opportunities, rental income, ROI
 2. Primary intent: search, sell, invest, browse
+   - search: Actively looking for specific properties
+   - sell: Wants to list/sell property
+   - invest: Seeking investment opportunities
+   - browse: General exploration of available properties
 3. Urgency level: low, medium, high
 4. Budget indication: budget_mentioned, no_budget_mentioned
 5. Location mentioned: location_mentioned, no_location_mentioned
 
 The message language is: {language}
+
+IMPORTANT DISTINCTIONS:
+- If someone mentions "investment", "инвестиции", "ROI", "rental income" → investor
+- If someone says "I'm an agent", "real estate agent" → agent
+- For non-meaningful input (numbers, gibberish), use fallback values
 
 Respond with a JSON object containing:
 {{
@@ -90,6 +103,9 @@ Examples:
 - "I'm looking for a condo in Phuket under 50k THB" → buyer, search, medium, budget_mentioned, location_mentioned
 - "Привет, хочу продать квартиру" → seller, sell, low, no_budget_mentioned, no_location_mentioned  
 - "What properties do you have?" → buyer, browse, low, no_budget_mentioned, no_location_mentioned
+- "Looking for investment opportunities" → investor, invest, medium, no_budget_mentioned, no_location_mentioned
+- "I'm a real estate agent" → agent, browse, low, no_budget_mentioned, no_location_mentioned
+- "123456" → buyer, browse, low, no_budget_mentioned, no_location_mentioned (fallback)
 """
         
         messages = self._build_context_messages(session, system_prompt)
