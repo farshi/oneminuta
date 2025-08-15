@@ -415,7 +415,7 @@ class NLPExtractionTester:
             ("Сколько стоит недвижимость?", "ru"),
             ("123456", "en"),  # Numbers default to English
             ("", "en"),  # Empty default to English
-            ("Hello привет", "en"),  # Mixed, but more English
+            ("Hello привет", "ru"),  # Mixed, but more Russian (6/11 chars are Cyrillic)
             ("Привет hello дом", "ru"),  # Mixed, but more Russian
         ]
         
