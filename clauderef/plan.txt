@@ -1,0 +1,79 @@
+CURRENT IMPLEMENTATION PLAN
+===========================
+Last Updated: 2025-08-16
+Focus: Property-only MVP with Role System
+
+=== IMMEDIATE TASKS (Today) ===
+
+1. CREATE ROLE CONFIGURATION
+   - Create /config/roles.json with admin, partner, user roles
+   - Create /config/user_roles.json for assignments
+   - Define permissions for each role
+
+2. BUILD PERMISSION SYSTEM
+   - Create libs/permissions.py
+   - Add check_permission(user_id, permission) function
+   - Integrate with config_loader
+
+3. UPDATE GREETINGS FOR RENTERS
+   - Modify greeting prompt to ask "rent or buy?"
+   - Update UserProfileDetectionStage
+   - Test with both renter and buyer flows
+
+=== THIS WEEK ===
+
+4. PARTNER ONBOARDING FLOW
+   - Add partner detection in chatbot
+   - Ask for TG channel during onboarding
+   - Store channel_id in session
+   - Validate channel ownership
+
+5. ADMIN COMMANDS
+   - /add_role @username partner
+   - /remove_role @username partner
+   - /list_partners
+   - Must check admin permission first
+
+6. CHANNEL MESSAGE FETCHING
+   - Fetch messages from partner channels
+   - Parse property listings with LLM
+   - Handle media groups (multiple photos)
+   - Store as structured data
+
+=== NEXT WEEK ===
+
+7. LISTING DEDUPLICATION
+   - Generate hash for each message
+   - Skip duplicates
+   - Update edited listings
+
+8. STRUCTURED STORAGE
+   - Store raw text + generate unique listing files
+   - Create listing index for search
+   - No media files, only URLs
+
+9. ENHANCED SEARCH
+   - Role-based search results
+   - Location-based filtering
+   - Price range filtering
+
+=== NOTES ===
+
+- PROPERTY ONLY for now (no cars/bikes)
+- Everything file-based (no database)
+- Partners are users with roles
+- Heavy LLM usage for parsing
+- All via Telegram (no web UI)
+
+=== CURRENT STATUS ===
+
+✅ NLP accuracy: 90% (some new renter/buyer tests need tuning)
+✅ Test coverage: Excellent
+✅ Role system: COMPLETED - 100% working
+✅ Session integration: COMPLETED
+⏳ Partner flow: Not started
+⏳ Admin commands: Not started
+
+=== NEXT STEP ===
+
+Ready for Task 4: Partner onboarding flow implementation

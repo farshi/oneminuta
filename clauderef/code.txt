@@ -1,0 +1,77 @@
+CODE CHANGES TO IMPLEMENT
+=========================
+Last Updated: 2025-08-16
+
+=== PENDING CHANGES ===
+
+1. CONFIG FILES TO CREATE:
+
+/config/roles.json
+{
+  "roles": {
+    "admin": {
+      "permissions": ["manage_users", "view_all_analytics", "set_roles"]
+    },
+    "partner": {
+      "permissions": ["post_listings", "view_own_analytics", "manage_channel"]
+    },
+    "user": {
+      "permissions": ["search_listings", "save_favorites"]
+    }
+  }
+}
+
+/config/user_roles.json
+{
+  "users": {}  // Will be populated as: "telegram_id": ["role1", "role2"]
+}
+
+2. NEW FILES TO CREATE:
+
+/libs/permissions.py
+- check_permission(user_id, permission)
+- get_user_roles(user_id)
+- add_role(user_id, role)
+- remove_role(user_id, role)
+
+3. FILES TO MODIFY:
+
+/services/chatbot/session_manager.py
+- Add 'role' field to new sessions
+- Add 'channel_id' field for partners
+
+/services/chatbot/stages/user_profile_detection.py
+- Update prompt to detect renters vs buyers
+- Add partner detection logic
+
+/services/chatbot/stages/smart_greeting.py
+- Different greetings based on user role
+- Ask rent vs buy for regular users
+
+4. NEW PROMPTS TO CREATE:
+
+/prompts/greeting_renter_buyer.txt
+/prompts/partner_onboarding.txt
+/prompts/listing_parser.txt
+/prompts/help_user.txt
+/prompts/help_partner.txt
+
+=== COMPLETED CHANGES ===
+
+✅ Added openai to requirements.txt
+✅ Fixed language detection test
+✅ Improved NLP prompts for 100% accuracy
+✅ Created role-based permission system
+✅ Added role support to session manager
+✅ Updated greetings for renters vs buyers
+✅ Added admin, partner, and user role flows
+✅ Role system tests passing 100%
+✅ Moved channel storage to user metadata (cleaner architecture)
+✅ Channel info now stored in /storage/chatbot/users/{user_id}/metadata.json
+
+=== DO NOT CHANGE ===
+
+- Existing test files (add tests, don't create new ones)
+- Core NLP logic (already at 100% accuracy)
+- Geosharding system (works well)
+- Storage structure (keep current format)

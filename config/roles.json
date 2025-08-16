@@ -1,0 +1,46 @@
+{
+  "roles": {
+    "admin": {
+      "description": "System administrator with full access",
+      "permissions": [
+        "manage_users",
+        "view_all_analytics",
+        "set_roles",
+        "delete_listings",
+        "view_all_users",
+        "access_admin_commands",
+        "moderate_content",
+        "view_system_logs"
+      ]
+    },
+    "partner": {
+      "description": "Property partner who can post listings",
+      "permissions": [
+        "post_listings",
+        "view_own_analytics",
+        "manage_channel",
+        "edit_own_listings",
+        "delete_own_listings",
+        "view_own_stats",
+        "access_partner_dashboard"
+      ]
+    },
+    "user": {
+      "description": "Regular user looking for properties",
+      "permissions": [
+        "search_listings",
+        "save_favorites",
+        "contact_partners",
+        "view_listings",
+        "get_recommendations",
+        "use_chatbot"
+      ]
+    }
+  },
+  "default_role": "user",
+  "role_hierarchy": {
+    "admin": 3,
+    "partner": 2,
+    "user": 1
+  }
+}

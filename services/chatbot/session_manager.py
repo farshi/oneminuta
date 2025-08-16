@@ -9,6 +9,7 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Optional
+from libs.permissions import get_user_roles, get_user_channel
 
 
 class ChatbotSessionManager:
@@ -30,15 +31,27 @@ class ChatbotSessionManager:
             try:
                 with open(session_file, 'r', encoding='utf-8') as f:
                     session = json.load(f)
+                
+                # Update roles and channel info on each load (in case they changed)
+                session['roles'] = get_user_roles(user_id)
+                if 'partner' in session['roles']:
+                    session['channel_id'] = get_user_channel(user_id)
+                
                 self.logger.debug(f"Loaded existing session for {user_id}")
                 return session
             except (json.JSONDecodeError, FileNotFoundError) as e:
                 self.logger.warning(f"Error loading session for {user_id}: {e}")
                 # Fall through to create new session
         
-        # Create new session
+        # Get user roles and channel if partner
+        user_roles = get_user_roles(user_id)
+        user_channel = get_user_channel(user_id) if 'partner' in user_roles else None
+        
+        # Create new session with role information
         session = {
             'user_id': user_id,
+            'roles': user_roles,  # User's roles (admin, partner, user)
+            'channel_id': user_channel,  # Partner's TG channel if applicable
             'created_at': datetime.now(timezone.utc).isoformat(),
             'last_active': datetime.now(timezone.utc).isoformat(),
             'current_stage': 'user-profile-detection',

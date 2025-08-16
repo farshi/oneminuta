@@ -1,0 +1,6 @@
+update conventions.txt 
+- no commit any changes until i Ask
+- when functinality added or updated , find the tests related to the 
+functioanlity and update the related test file,not scattered tests. for example
+if we change or add functinality for the assetmanager it should update 
+the file and add new tests method

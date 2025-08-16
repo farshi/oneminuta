@@ -1,0 +1,128 @@
+ONEMINUTA PROJECT CONVENTIONS
+==============================
+Last Updated: 2025-08-16
+
+=== CODE ORGANIZATION ===
+
+1. BE ORGANIZED
+   - Follow existing project structure
+   - Keep related files together
+   - Use clear, descriptive names
+
+2. TESTING APPROACH
+   - Don't create new test files if one exists for the capability
+   - Edit existing test files to add new test cases
+   - Find the tests RELATED to the functionality being changed
+   - Update the SAME test file, not scattered tests
+   - Example: AssetManager changes → update AssetManager test file
+   - Example: Permission changes → update Permission test file
+   - Example: Session changes → update Session test file
+   - Maintain test coverage at 100% for critical paths
+   - Run tests before any changes
+
+3. CONFIGURATION MANAGEMENT
+   - ALL configs must be loaded through libs/config_loader.py
+   - Never hardcode configuration values
+   - Use get_config() or related functions from config_loader
+   - Environment variables > .env file > defaults
+
+4. FILE PLACEMENT RULES
+   - NO .md files in root directory
+   - Code documentation → in relevant code folder
+   - User guides → /docs/guides/
+   - API documentation → /docs/api/
+   - Project docs → /docs/
+   - Temporary plans → /clauderef/ or /tmp/
+
+5. PROPERTY-FIRST APPROACH
+   - Currently supporting ONLY property-related assets
+   - System designed to be extensible for car/bike later
+   - Don't add car/bike features yet, but keep extensibility in mind
+
+=== DEVELOPMENT PRACTICES ===
+
+6. FILE-BASED ARCHITECTURE
+   - No database tables - everything is file-based
+   - Use JSON for structured data storage
+   - Leverage existing geosharding system
+   - Store in appropriate user folders
+
+7. USER ROLE SYSTEM
+   - Partners are users with special roles
+   - No separate folders for partners/admins
+   - Roles defined in /config/roles.json
+   - User assignments in /config/user_roles.json
+
+8. MEDIA HANDLING
+   - NEVER store media files directly
+   - Store only URLs/links to external media
+   - Partners upload to their own cloud storage
+   - We reference their public URLs
+
+9. USER METADATA STORAGE
+   - Store user-specific data in /storage/chatbot/users/{user_id}/
+   - Partner channel info in metadata.json
+   - Keep global configs clean and minimal
+   - User metadata includes: channel_id, preferences, etc.
+
+9. TELEGRAM-FIRST
+   - All user interaction via Telegram
+   - No web interface for MVP
+   - Use existing bot infrastructure
+   - Channel integration for partners
+
+10. LLM USAGE
+    - Heavy reliance on LLM for parsing
+    - Prompts stored in /prompts/ directory
+    - Use prompt templates, not hardcoded strings
+    - Cache LLM responses when appropriate
+
+=== CODING STANDARDS ===
+
+11. PYTHON STYLE
+    - Follow PEP 8
+    - Use type hints where helpful
+    - Async/await for all I/O operations
+    - Clear docstrings for public functions
+
+12. ERROR HANDLING
+    - Always handle exceptions gracefully
+    - Log errors appropriately
+    - Return user-friendly error messages
+    - Never expose internal errors to users
+
+13. SECURITY
+    - Never log sensitive information
+    - Validate all user inputs
+    - Check permissions before operations
+    - Use config_loader for API keys
+
+=== GIT PRACTICES ===
+
+14. COMMITS
+    - NO COMMITS without explicit user approval
+    - Clear, descriptive commit messages when approved
+    - Test before committing
+    - Don't commit test/temporary files
+    - Keep commits focused on single changes
+
+15. BRANCHES
+    - Work on main for now (small team)
+    - Later: feature branches for major changes
+
+=== COMMUNICATION WITH CLAUDE ===
+
+16. USE REFERENCE FILES
+    - Read clauderef/plan.txt for current tasks
+    - Check clauderef/code.txt for code changes
+    - Follow conventions.txt always
+
+17. ASK BEFORE MAJOR CHANGES
+    - Discuss approach before implementing
+    - Show plan before editing multiple files
+    - Get confirmation on architectural decisions
+
+18. MAINTAIN CONTEXT
+    - Update plan.txt with progress
+    - Document decisions in appropriate places
+    - Keep todo list current

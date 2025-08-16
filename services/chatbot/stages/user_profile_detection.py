@@ -67,16 +67,20 @@ class UserProfileDetectionStage(BaseChatbotStage):
         system_prompt = f"""You are an AI assistant that analyzes user messages to determine their profile for a property platform. 
 
 Analyze the user's message and determine:
-1. User type: buyer, seller, agent, investor
-   - buyer: Looking to purchase or rent property for personal use
+1. User type: buyer, renter, seller, agent, investor, partner
+   - buyer: Looking to PURCHASE property for personal use
+   - renter: Looking to RENT property for personal use
    - seller: Wants to sell or list their property
    - agent: Real estate professional needing platform access
    - investor: Looking for investment opportunities, rental income, ROI
-2. Primary intent: search, sell, invest, browse
-   - search: Actively looking for specific properties
-   - sell: Wants to list/sell property
+   - partner: Property partner wanting to post listings
+2. Primary intent: buy, rent, sell, invest, browse, partner_onboard
+   - buy: Want to purchase property
+   - rent: Want to rent property
+   - sell: Want to list/sell property
    - invest: Seeking investment opportunities
    - browse: General exploration of available properties
+   - partner_onboard: Want to become a partner and post listings
 3. Urgency level: low, medium, high
 4. Budget indication: budget_mentioned, no_budget_mentioned
 5. Location mentioned: location_mentioned, no_location_mentioned
@@ -84,14 +88,17 @@ Analyze the user's message and determine:
 The message language is: {language}
 
 IMPORTANT DISTINCTIONS:
+- If someone mentions "rent", "lease", "monthly", "арендовать", "снять" → renter
+- If someone mentions "buy", "purchase", "own", "купить", "приобрести" → buyer
 - If someone mentions "investment", "инвестиции", "ROI", "rental income" → investor
 - If someone says "I'm an agent", "real estate agent" → agent
+- If someone says "I want to post listings", "I'm a partner" → partner
 - For non-meaningful input (numbers, gibberish), use fallback values
 
 Respond with a JSON object containing:
 {{
-  "user_type": "buyer|seller|agent|investor",
-  "intent": "search|sell|invest|browse", 
+  "user_type": "buyer|renter|seller|agent|investor|partner",
+  "intent": "buy|rent|sell|invest|browse|partner_onboard", 
   "urgency": "low|medium|high",
   "budget_indication": "budget_mentioned|no_budget_mentioned",
   "location_mentioned": "location_mentioned|no_location_mentioned",
@@ -100,11 +107,13 @@ Respond with a JSON object containing:
 }}
 
 Examples:
-- "I'm looking for a condo in Phuket under 50k THB" → buyer, search, medium, budget_mentioned, location_mentioned
+- "I want to rent a condo in Phuket under 30k THB/month" → renter, rent, medium, budget_mentioned, location_mentioned
+- "Looking to buy a villa in Rawai" → buyer, buy, medium, no_budget_mentioned, location_mentioned
 - "Привет, хочу продать квартиру" → seller, sell, low, no_budget_mentioned, no_location_mentioned  
 - "What properties do you have?" → buyer, browse, low, no_budget_mentioned, no_location_mentioned
 - "Looking for investment opportunities" → investor, invest, medium, no_budget_mentioned, no_location_mentioned
 - "I'm a real estate agent" → agent, browse, low, no_budget_mentioned, no_location_mentioned
+- "I want to become a partner and post listings" → partner, partner_onboard, medium, no_budget_mentioned, no_location_mentioned
 - "123456" → buyer, browse, low, no_budget_mentioned, no_location_mentioned (fallback)
 """
         

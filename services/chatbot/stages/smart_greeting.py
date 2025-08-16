@@ -9,6 +9,7 @@ import json
 from typing import Dict, Any
 
 from .base_stage import BaseChatbotStage
+from libs.permissions import check_permission
 
 
 class SmartGreetingStage(BaseChatbotStage):
@@ -20,20 +21,35 @@ class SmartGreetingStage(BaseChatbotStage):
     async def process(self, user_id: str, message: str, session: Dict, context: Dict = None) -> Dict:
         """Process message and provide personalized greeting"""
         
-        # Get user profile from session
+        # Get user profile and roles from session
         profile = session.get('collected_data', {}).get('profile', {})
         language = profile.get('language_preference', 'en')
         user_type = profile.get('user_type', 'buyer')
+        user_roles = session.get('roles', ['user'])
         
-        # Generate personalized greeting
-        greeting = await self._generate_personalized_greeting(profile, message, session)
+        # Check if user is admin or partner
+        is_admin = 'admin' in user_roles
+        is_partner = 'partner' in user_roles
+        
+        # Generate personalized greeting based on role
+        if is_admin:
+            greeting = self._get_admin_greeting(language)
+        elif is_partner:
+            greeting = self._get_partner_greeting(language)
+        else:
+            greeting = await self._generate_personalized_greeting(profile, message, session)
         
         if not greeting:
             # Fallback greeting
             greeting = self._get_fallback_greeting(user_type, language)
         
-        # Add conversation starter based on user type
-        conversation_starter = self._get_conversation_starter(user_type, language)
+        # Add conversation starter based on user type and role
+        if is_admin:
+            conversation_starter = self._get_admin_menu(language)
+        elif is_partner:
+            conversation_starter = self._get_partner_menu(language)
+        else:
+            conversation_starter = self._get_conversation_starter(user_type, language)
         
         full_response = f"{greeting}\n\n{conversation_starter}"
         
@@ -103,21 +119,57 @@ Make it feel personal and welcoming, like talking to a knowledgeable local exper
         
         return greetings.get(language, greetings["en"]).get(user_type, greetings["en"]["buyer"])
     
+    def _get_admin_greeting(self, language: str) -> str:
+        """Get admin-specific greeting"""
+        greetings = {
+            "en": "Welcome Admin! You have full system access.",
+            "ru": "Добро пожаловать, Администратор! У вас есть полный доступ к системе."
+        }
+        return greetings.get(language, greetings["en"])
+    
+    def _get_partner_greeting(self, language: str) -> str:
+        """Get partner-specific greeting"""
+        greetings = {
+            "en": "Welcome back, Partner! Ready to manage your property listings?",
+            "ru": "С возвращением, Партнер! Готовы управлять своими объявлениями?"
+        }
+        return greetings.get(language, greetings["en"])
+    
+    def _get_admin_menu(self, language: str) -> str:
+        """Get admin menu options"""
+        menus = {
+            "en": "Admin Commands:\n/add_role @username role\n/remove_role @username role\n/list_partners\n/list_admins\n/view_analytics",
+            "ru": "Команды администратора:\n/add_role @username role\n/remove_role @username role\n/list_partners\n/list_admins\n/view_analytics"
+        }
+        return menus.get(language, menus["en"])
+    
+    def _get_partner_menu(self, language: str) -> str:
+        """Get partner menu options"""
+        menus = {
+            "en": "Partner Options:\n1) Set up Telegram channel\n2) Post new listings\n3) View your analytics\n4) Manage existing listings",
+            "ru": "Опции партнера:\n1) Настроить Telegram канал\n2) Разместить новые объявления\n3) Посмотреть аналитику\n4) Управлять объявлениями"
+        }
+        return menus.get(language, menus["en"])
+    
     def _get_conversation_starter(self, user_type: str, language: str) -> str:
         """Get conversation starter based on user type"""
         
         starters = {
             "en": {
-                "buyer": "To find you the best properties, I'd like to understand your preferences better. What type of property interests you most - a condo, villa, or house?",
+                "buyer": "Are you looking to BUY or RENT? Once I know that, I can help you find the perfect property.",
+                "renter": "Great! You're looking to rent. What type of property interests you - condo, villa, or house? And what's your monthly budget?",
                 "seller": "To help you list your property effectively, let me gather some details. What type of property are you looking to sell?",
                 "investor": "To identify the best investment opportunities for you, I need to understand your investment criteria. What's your preferred property type and budget range?",
-                "agent": "I can help you access properties for your clients or list new ones. What would you like to do today?"
+                "agent": "I can help you access properties for your clients or list new ones. What would you like to do today?",
+                "partner": "Welcome partner! Would you like to: 1) Set up your Telegram channel, 2) Post new listings, or 3) View analytics?"
             },
             "ru": {
-                "buyer": "Чтобы найти для вас лучшие варианты недвижимости, я хотел бы лучше понять ваши предпочтения. Какой тип недвижимости вас больше всего интересует - кондо, вилла или дом?",
+                "buyer": "Вы хотите КУПИТЬ или АРЕНДОВАТЬ? Как только я узнаю, я помогу найти идеальную недвижимость.",
+                "renter": "Отлично! Вы ищете аренду. Какой тип недвижимости вас интересует - кондо, вилла или дом? И какой ваш месячный бюджет?",
                 "seller": "Чтобы помочь эффективно разместить вашу недвижимость, позвольте собрать некоторые детали. Какой тип недвижимости вы хотите продать?",
                 "investor": "Чтобы определить лучшие инвестиционные возможности для вас, мне нужно понять ваши критерии. Какой тип недвижимости и бюджетный диапазон предпочитаете?",
-                "agent": "Я могу помочь вам получить доступ к недвижимости для ваших клиентов или разместить новые объекты. Что бы вы хотели сделать сегодня?"
+                "agent": "Я могу помочь вам получить доступ к недвижимости для ваших клиентов или разместить новые объекты. Что бы вы хотели сделать сегодня?",
+                "partner": "Добро пожаловать, партнер! Что хотите сделать: 1) Настроить Telegram канал, 2) Разместить объявления, или 3) Посмотреть аналитику?"
             }
         }
         

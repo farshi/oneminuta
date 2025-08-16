@@ -1,0 +1,17 @@
+{
+  "users": {
+    "example_admin_id": [
+      "admin"
+    ],
+    "example_partner_id": [
+      "partner"
+    ],
+    "example_user_id": [
+      "user"
+    ]
+  },
+  "metadata": {
+    "last_updated": "2025-08-16",
+    "version": "1.0.0"
+  }
+}
